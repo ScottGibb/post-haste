@@ -1,12 +1,14 @@
-#![feature(variant_count)]
 use embassy_sync::channel::DynamicSender;
 
-enum Address {}
-
 enum Message {}
-fn main() {
-    post_haste::init_postmaster!(crate::Address, crate::Message);
-}
+
+fn main() {}
+
+post_haste::init_postmaster!(Addresses: {
+        One,
+        Two
+    },
+    Messages: Message);
 
 struct Postmaster<'a> {
     senders: [DynamicSender<'a, <Postmaster<'a> as Pm>::Message>],
