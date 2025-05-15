@@ -1,40 +1,72 @@
 #![no_std]
 
 pub mod agent;
-pub mod postmaster;
+pub mod error;
 
+pub use error::PostmasterError;
 pub use variant_count::VariantCount;
 
 #[macro_export]
 macro_rules! init_postmaster {
     (Addresses: {$($address:ident),*}, Messages: $message_type:ty) => {
-        #[derive($crate::VariantCount)]
-        enum Address {
+        #[derive($crate::VariantCount, Clone, Copy)]
+        enum Addresses {
             $($address),*
         }
 
-        mod postmaster_internal {
+        mod postmaster {
             use embassy_sync::channel::DynamicSender;
-            use super::{Address, $message_type};
+            use super::{Addresses, $message_type};
+            use post_haste::PostmasterError;
 
-            struct Postmaster<'a> {
-                senders:
-                    [Option<DynamicSender<'a, <Self as PostmasterTypes>::Message>>; Address::VARIANT_COUNT],
+            macro_rules! register_agent {
+                ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {
+                    {
+                        use embassy_sync::channel::Channel;
+                        static CHANNEL: Channel = Channel::new();
+
+                        $spawner.must_spawn($agent::new(CHANNEL.receiver, $config));
+                        unsafe { postmaster_internals::register_agent($agent_address, CHANNEL.sender) }
+                    }
+                }
             }
 
-            unsafe impl Sync for Postmaster<'_> {}
+            pub fn register_mailbox(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {unsafe { postmaster_internal::register_agent(address, mailbox) }
 
-            trait PostmasterTypes {
-                type Message;
             }
 
-            impl PostmasterTypes for Postmaster<'_> {
-                type Message = $message_type;
-            }
+            mod postmaster_internal {
+                use embassy_sync::channel::DynamicSender;
+                use super::{Addresses, $message_type, PostmasterError};
 
-            static POSTMASTER: Postmaster = Postmaster {
-                senders: [None; Address::VARIANT_COUNT],
-            };
+                pub(super) unsafe fn register_agent(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {
+                    if POSTMASTER.senders[address as usize].is_none() {
+                    POSTMASTER.senders[address as usize].replace(mailbox);
+                    Ok(())
+                    } else {
+                        Err(PostmasterError::AddressAlreadyTaken)
+                    }
+                }
+
+                struct Postmaster<'a> {
+                    senders:
+                        [Option<DynamicSender<'a, <Self as PostmasterTypes>::Message>>; Addresses::VARIANT_COUNT],
+                }
+
+                unsafe impl Sync for Postmaster<'_> {}
+
+                trait PostmasterTypes {
+                    type Message;
+                }
+
+                impl PostmasterTypes for Postmaster<'_> {
+                    type Message = $message_type;
+                }
+
+                static mut POSTMASTER: Postmaster = Postmaster {
+                    senders: [None; Addresses::VARIANT_COUNT],
+                };
+            }
         }
     };
 }
