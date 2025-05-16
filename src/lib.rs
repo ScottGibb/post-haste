@@ -19,6 +19,7 @@ macro_rules! init_postmaster {
             use super::{Addresses, $message_type};
             use post_haste::PostmasterError;
 
+            #[macro_export]
             macro_rules! register_agent {
                 ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {
                     {
