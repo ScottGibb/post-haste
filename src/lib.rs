@@ -26,14 +26,16 @@ macro_rules! init_postmaster {
                         use embassy_sync::channel::Channel;
                         static CHANNEL: Channel = Channel::new();
 
-                        $spawner.must_spawn($agent::new(CHANNEL.receiver, $config));
+                        let agent = $agent::create($agent_address, $config).await;
+
+                        $spawner.must_spawn(agent.run(CHANNEL.receiver));
                         unsafe { postmaster_internals::register_agent($agent_address, CHANNEL.sender) }
                     }
                 }
             }
 
-            pub fn register_mailbox(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {unsafe { postmaster_internal::register_agent(address, mailbox) }
-
+            pub fn register_mailbox(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {
+                unsafe { postmaster_internal::register_agent(address, mailbox) }
             }
 
             mod postmaster_internal {
@@ -42,8 +44,8 @@ macro_rules! init_postmaster {
 
                 pub(super) unsafe fn register_agent(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {
                     if POSTMASTER.senders[address as usize].is_none() {
-                    POSTMASTER.senders[address as usize].replace(mailbox);
-                    Ok(())
+                        POSTMASTER.senders[address as usize].replace(mailbox);
+                        Ok(())
                     } else {
                         Err(PostmasterError::AddressAlreadyTaken)
                     }
