@@ -1,9 +1,6 @@
+enum Addresses {}
 enum Message {}
 
 fn main() {}
 
-post_haste::init_postmaster!(Addresses: {
-        One,
-        Two
-    },
-    Messages: Message);
+post_haste::init_postmaster!(Addresses, Message);
