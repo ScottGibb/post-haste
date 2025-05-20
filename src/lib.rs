@@ -3,6 +3,9 @@
 pub mod agent;
 pub mod error;
 
+pub use embassy_executor::Spawner;
+pub use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex};
+pub use embassy_time::{Duration, WithTimeout};
 pub use error::PostmasterError;
 
 #[macro_export]
@@ -10,7 +13,6 @@ macro_rules! init_postmaster {
     ($address_enum:ty, $payload_enum:ty) => {
         mod postmaster {
             use super::{Addresses, $payload_enum};
-            use embassy_sync::channel::DynamicSender;
             use post_haste::PostmasterError;
 
             const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
@@ -40,32 +42,69 @@ macro_rules! init_postmaster {
 
             mod postmaster_internal {
                 use super::{ADDRESS_COUNT, Addresses, Message, PostmasterError, $payload_enum};
-                use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-                use embassy_sync::channel::DynamicSender;
-                use embassy_sync::mutex::Mutex;
+                use core::cell::RefCell;
+                use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+                use post_haste::{
+                    Duration, DynamicSender, Mutex, NoopRawMutex, Spawner, WithTimeout,
+                };
 
-                // pub(super) unsafe fn register_agent(
-                //     address: Addresses,
-                //     mailbox: DynamicSender<'static, $payload_enum>,
-                // ) -> Result<(), PostmasterError> {
-                //     if POSTMASTER.senders[address as usize].is_none() {
-                //         POSTMASTER.senders[address as usize].replace(mailbox);
-                //         Ok(())
-                //     } else {
-                //         Err(PostmasterError::AddressAlreadyTaken)
-                //     }
-                // }
+                pub(super) async fn send_internal(
+                    destination: Addresses,
+                    message: Message,
+                    timeout: Option<Duration>,
+                ) -> Result<(), PostmasterError> {
+                    let timeout = match timeout {
+                        Some(duration) => duration,
+                        None => Duration::from_micros(
+                            POSTMASTER.timeout_us.load(Ordering::Relaxed).into(),
+                        ),
+                    };
+                    evaluate_diagnostics(
+                        async {
+                            match POSTMASTER.senders.lock().await[destination as usize] {
+                                None => Err(PostmasterError::NoRecipient),
+                                Some(sender) => {
+                                    sender.send(message).await;
+                                    Ok(())
+                                }
+                            }
+                        }
+                        .with_timeout(timeout)
+                        .await?,
+                    )
+                }
 
                 struct Postmaster<'a> {
                     senders:
                         Mutex<NoopRawMutex, [Option<DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
+                    timeout_us: AtomicU32,
+                    spawner: RefCell<Option<Spawner>>,
+                    messages_sent: AtomicUsize,
+                    send_failures: AtomicUsize,
                 }
 
                 unsafe impl Sync for Postmaster<'_> {}
 
                 static POSTMASTER: Postmaster = Postmaster {
                     senders: Mutex::new([None; ADDRESS_COUNT]),
+                    timeout_us: AtomicU32::new(100),
+                    spawner: RefCell::new(None),
+                    messages_sent: AtomicUsize::new(0),
+                    send_failures: AtomicUsize::new(0),
                 };
+
+                #[inline]
+                fn evaluate_diagnostics(
+                    result: Result<(), PostmasterError>,
+                ) -> Result<(), PostmasterError> {
+                    result
+                        .inspect(|_| {
+                            POSTMASTER.messages_sent.fetch_add(1, Ordering::Relaxed);
+                        })
+                        .inspect_err(|_| {
+                            POSTMASTER.send_failures.fetch_add(1, Ordering::Relaxed);
+                        })
+                }
             }
         }
     };
