@@ -120,7 +120,3 @@ macro_rules! init_postmaster {
         }
     };
 }
-
-pub trait PostAddress {
-    const VARIANT_COUNT: usize;
-}
