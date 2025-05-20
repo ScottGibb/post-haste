@@ -1,6 +1,8 @@
+#![no_std]
+#![feature(variant_count)]
 enum Addresses {}
-enum Message {}
+enum MessagePayload {}
+
+post_haste::init_postmaster!(Addresses, MessagePayload);
 
 fn main() {}
-
-post_haste::init_postmaster!(Addresses, Message);
