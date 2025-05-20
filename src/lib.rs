@@ -3,9 +3,13 @@
 pub mod agent;
 pub mod error;
 
-pub use embassy_executor::Spawner;
-pub use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex};
-pub use embassy_time::{Duration, WithTimeout};
+pub mod embassy {
+    pub use embassy_executor::{task, Spawner};
+    pub use embassy_sync::{
+        blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex,
+    };
+    pub use embassy_time::{Duration, WithTimeout};
+}
 pub use error::PostmasterError;
 
 #[macro_export]
@@ -44,18 +48,17 @@ macro_rules! init_postmaster {
                 use super::{ADDRESS_COUNT, $address_enum, Message, PostmasterError, $payload_enum};
                 use core::cell::RefCell;
                 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-                use post_haste::{
-                    Duration, DynamicSender, Mutex, NoopRawMutex, Spawner, WithTimeout,
-                };
+                use post_haste::embassy;
+                use embassy::WithTimeout;
 
                 pub(super) async fn send_internal(
                     destination: $address_enum,
                     message: Message,
-                    timeout: Option<Duration>,
+                    timeout: Option<embassy::Duration>,
                 ) -> Result<(), PostmasterError> {
                     let timeout = match timeout {
                         Some(duration) => duration,
-                        None => Duration::from_micros(
+                        None => embassy::Duration::from_micros(
                             POSTMASTER.timeout_us.load(Ordering::Relaxed).into(),
                         ),
                     };
@@ -87,9 +90,9 @@ macro_rules! init_postmaster {
 
                 struct Postmaster<'a> {
                     senders:
-                        Mutex<NoopRawMutex, [Option<DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
+                        embassy::Mutex<embassy::NoopRawMutex, [Option<embassy::DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
                     timeout_us: AtomicU32,
-                    spawner: RefCell<Option<Spawner>>,
+                    spawner: RefCell<Option<embassy::Spawner>>,
                     messages_sent: AtomicUsize,
                     send_failures: AtomicUsize,
                 }
@@ -97,7 +100,7 @@ macro_rules! init_postmaster {
                 unsafe impl Sync for Postmaster<'_> {}
 
                 static POSTMASTER: Postmaster = Postmaster {
-                    senders: Mutex::new([None; ADDRESS_COUNT]),
+                    senders: embassy::Mutex::new([None; ADDRESS_COUNT]),
                     timeout_us: AtomicU32::new(100),
                     spawner: RefCell::new(None),
                     messages_sent: AtomicUsize::new(0),
