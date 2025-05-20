@@ -8,7 +8,7 @@ pub mod embassy {
     pub use embassy_sync::{
         blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex,
     };
-    pub use embassy_time::{Duration, WithTimeout};
+    pub use embassy_time::{Duration, Timer, WithTimeout};
 }
 pub use error::PostmasterError;
 
@@ -88,6 +88,16 @@ macro_rules! init_postmaster {
                         })
                 }
 
+                #[embassy::task]
+                pub(super) async fn delayed_send(destination: $address_enum, message: Message, delay: embassy::Duration, timeout: Option<embassy::Duration>) {
+                    embassy::Timer::after(delay).await;
+                    let source = message.source;
+                    match send_internal(destination, message, timeout).await {
+                        Ok(_) => (),
+                        Err(error) => report_send_error(source, error).await,
+                    }
+                }
+
                 struct Postmaster<'a> {
                     senders:
                         embassy::Mutex<embassy::NoopRawMutex, [Option<embassy::DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
@@ -118,6 +128,10 @@ macro_rules! init_postmaster {
                         .inspect_err(|_| {
                             POSTMASTER.send_failures.fetch_add(1, Ordering::Relaxed);
                         })
+                }
+
+                async fn report_send_error(destination: $address_enum, error: PostmasterError) {
+                    let error_report
                 }
             }
         }
