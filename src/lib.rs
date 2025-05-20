@@ -3,72 +3,108 @@
 pub mod agent;
 pub mod error;
 
+pub use embassy_executor::Spawner;
+pub use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex};
+pub use embassy_time::{Duration, WithTimeout};
 pub use error::PostmasterError;
-pub use variant_count::VariantCount;
 
 #[macro_export]
 macro_rules! init_postmaster {
-    (Addresses: {$($address:ident),*}, Messages: $message_type:ty) => {
-        #[derive($crate::VariantCount, Clone, Copy)]
-        enum Addresses {
-            $($address),*
-        }
-
+    ($address_enum:ty, $payload_enum:ty) => {
         mod postmaster {
-            use embassy_sync::channel::DynamicSender;
-            use super::{Addresses, $message_type};
+            use super::{Addresses, $payload_enum};
             use post_haste::PostmasterError;
 
-            #[macro_export]
-            macro_rules! register_agent {
-                ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {
-                    {
-                        use embassy_sync::channel::Channel;
-                        static CHANNEL: Channel = Channel::new();
+            const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
 
-                        let agent = $agent::create($agent_address, $config).await;
+            // #[macro_export]
+            // macro_rules! register_agent {
+            //     ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {{
+            //         use embassy_sync::channel::Channel;
+            //         static CHANNEL: Channel = Channel::new();
 
-                        $spawner.must_spawn(agent.run(CHANNEL.receiver));
-                        unsafe { postmaster_internals::register_agent($agent_address, CHANNEL.sender) }
-                    }
-                }
-            }
+            //         $spawner.must_spawn($agent::new(CHANNEL.receiver, $config));
+            //         unsafe { postmaster_internals::register_agent($agent_address, CHANNEL.sender) }
+            //     }};
+            // }
 
-            pub fn register_mailbox(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {
-                unsafe { postmaster_internal::register_agent(address, mailbox) }
+            // pub fn register_mailbox(
+            //     address: Addresses,
+            //     mailbox: DynamicSender<'static, $payload_enum>,
+            // ) -> Result<(), PostmasterError> {
+            //     unsafe { postmaster_internal::register_agent(address, mailbox) }
+            // }
+
+            pub struct Message {
+                source: $address_enum,
+                payload: $payload_enum,
             }
 
             mod postmaster_internal {
-                use embassy_sync::channel::DynamicSender;
-                use super::{Addresses, $message_type, PostmasterError};
+                use super::{ADDRESS_COUNT, Addresses, Message, PostmasterError, $payload_enum};
+                use core::cell::RefCell;
+                use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+                use post_haste::{
+                    Duration, DynamicSender, Mutex, NoopRawMutex, Spawner, WithTimeout,
+                };
 
-                pub(super) unsafe fn register_agent(address: Addresses, mailbox: DynamicSender<'static, $message_type>) -> Result<(), PostmasterError> {
-                    if POSTMASTER.senders[address as usize].is_none() {
-                        POSTMASTER.senders[address as usize].replace(mailbox);
-                        Ok(())
-                    } else {
-                        Err(PostmasterError::AddressAlreadyTaken)
-                    }
+                pub(super) async fn send_internal(
+                    destination: Addresses,
+                    message: Message,
+                    timeout: Option<Duration>,
+                ) -> Result<(), PostmasterError> {
+                    let timeout = match timeout {
+                        Some(duration) => duration,
+                        None => Duration::from_micros(
+                            POSTMASTER.timeout_us.load(Ordering::Relaxed).into(),
+                        ),
+                    };
+                    evaluate_diagnostics(
+                        async {
+                            match POSTMASTER.senders.lock().await[destination as usize] {
+                                None => Err(PostmasterError::NoRecipient),
+                                Some(sender) => {
+                                    sender.send(message).await;
+                                    Ok(())
+                                }
+                            }
+                        }
+                        .with_timeout(timeout)
+                        .await?,
+                    )
                 }
 
                 struct Postmaster<'a> {
                     senders:
-                        [Option<DynamicSender<'a, <Self as PostmasterTypes>::Message>>; Addresses::VARIANT_COUNT],
+                        Mutex<NoopRawMutex, [Option<DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
+                    timeout_us: AtomicU32,
+                    spawner: RefCell<Option<Spawner>>,
+                    messages_sent: AtomicUsize,
+                    send_failures: AtomicUsize,
                 }
 
                 unsafe impl Sync for Postmaster<'_> {}
 
-                trait PostmasterTypes {
-                    type Message;
-                }
-
-                impl PostmasterTypes for Postmaster<'_> {
-                    type Message = $message_type;
-                }
-
-                static mut POSTMASTER: Postmaster = Postmaster {
-                    senders: [None; Addresses::VARIANT_COUNT],
+                static POSTMASTER: Postmaster = Postmaster {
+                    senders: Mutex::new([None; ADDRESS_COUNT]),
+                    timeout_us: AtomicU32::new(100),
+                    spawner: RefCell::new(None),
+                    messages_sent: AtomicUsize::new(0),
+                    send_failures: AtomicUsize::new(0),
                 };
+
+                #[inline]
+                fn evaluate_diagnostics(
+                    result: Result<(), PostmasterError>,
+                ) -> Result<(), PostmasterError> {
+                    result
+                        .inspect(|_| {
+                            POSTMASTER.messages_sent.fetch_add(1, Ordering::Relaxed);
+                        })
+                        .inspect_err(|_| {
+                            POSTMASTER.send_failures.fetch_add(1, Ordering::Relaxed);
+                        })
+                }
             }
         }
     };

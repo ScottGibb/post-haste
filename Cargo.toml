@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+embassy-executor = "0.7.0"
 embassy-sync = "0.6.2"
+embassy-time = "0.4.0"
 variant_count = "1.1.0"
