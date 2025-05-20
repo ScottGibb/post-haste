@@ -12,7 +12,7 @@ pub use error::PostmasterError;
 macro_rules! init_postmaster {
     ($address_enum:ty, $payload_enum:ty) => {
         mod postmaster {
-            use super::{Addresses, $payload_enum};
+            use super::{$address_enum, $payload_enum};
             use post_haste::PostmasterError;
 
             const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
@@ -29,7 +29,7 @@ macro_rules! init_postmaster {
             // }
 
             // pub fn register_mailbox(
-            //     address: Addresses,
+            //     address: $address_enum,
             //     mailbox: DynamicSender<'static, $payload_enum>,
             // ) -> Result<(), PostmasterError> {
             //     unsafe { postmaster_internal::register_agent(address, mailbox) }
@@ -41,7 +41,7 @@ macro_rules! init_postmaster {
             }
 
             mod postmaster_internal {
-                use super::{ADDRESS_COUNT, Addresses, Message, PostmasterError, $payload_enum};
+                use super::{ADDRESS_COUNT, $address_enum, Message, PostmasterError, $payload_enum};
                 use core::cell::RefCell;
                 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
                 use post_haste::{
@@ -49,7 +49,7 @@ macro_rules! init_postmaster {
                 };
 
                 pub(super) async fn send_internal(
-                    destination: Addresses,
+                    destination: $address_enum,
                     message: Message,
                     timeout: Option<Duration>,
                 ) -> Result<(), PostmasterError> {
@@ -72,6 +72,17 @@ macro_rules! init_postmaster {
                         .with_timeout(timeout)
                         .await?,
                     )
+                }
+
+                pub(super) fn try_send_internal(destination: $address_enum, message: Message) -> Result<(), PostmasterError> {
+                    evaluate_diagnostics(
+                        match POSTMASTER.senders.try_lock()?[destination as usize] {
+                            None => Err(PostmasterError::NoRecipient),
+                            Some(sender) => {
+                                sender.try_send(message)?;
+                                Ok(())
+                            }
+                        })
                 }
 
                 struct Postmaster<'a> {
