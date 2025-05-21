@@ -14,12 +14,22 @@ pub use error::PostmasterError;
 
 #[macro_export]
 macro_rules! init_postmaster {
-    ($address_enum:ty, $payload_enum:ty) => {
+    (Addresses: {$($address:ident,)*}, MessageCategories: {$($payload:tt,)*}) => {
+        #[derive(Copy, Clone, PartialEq, Debug)]
+        enum Addresses {
+            $($address,)*
+        }
+
+        #[derive(Clone, PartialEq, Debug)]
+        enum Payloads {
+            $($payload($payload),)*
+        }
+
         mod postmaster {
-            use super::{$address_enum, $payload_enum};
+            use super::{Addresses, Payloads};
             use post_haste::PostmasterError;
 
-            const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
+            const ADDRESS_COUNT: usize = core::mem::variant_count::<Addresses>();
 
             // #[macro_export]
             // macro_rules! register_agent {
@@ -33,26 +43,26 @@ macro_rules! init_postmaster {
             // }
 
             // pub fn register_mailbox(
-            //     address: $address_enum,
-            //     mailbox: DynamicSender<'static, $payload_enum>,
+            //     address: Addresses,
+            //     mailbox: DynamicSender<'static, Payloads>,
             // ) -> Result<(), PostmasterError> {
             //     unsafe { postmaster_internal::register_agent(address, mailbox) }
             // }
 
             pub struct Message {
-                source: $address_enum,
-                payload: $payload_enum,
+                source: Addresses,
+                payload: Payloads,
             }
 
             mod postmaster_internal {
-                use super::{ADDRESS_COUNT, $address_enum, Message, PostmasterError, $payload_enum};
+                use super::{ADDRESS_COUNT, Addresses, Message, PostmasterError, Payloads};
                 use core::cell::RefCell;
                 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
                 use post_haste::embassy;
                 use embassy::WithTimeout;
 
                 pub(super) async fn send_internal(
-                    destination: $address_enum,
+                    destination: Addresses,
                     message: Message,
                     timeout: Option<embassy::Duration>,
                 ) -> Result<(), PostmasterError> {
@@ -77,7 +87,7 @@ macro_rules! init_postmaster {
                     )
                 }
 
-                pub(super) fn try_send_internal(destination: $address_enum, message: Message) -> Result<(), PostmasterError> {
+                pub(super) fn try_send_internal(destination: Addresses, message: Message) -> Result<(), PostmasterError> {
                     evaluate_diagnostics(
                         match POSTMASTER.senders.try_lock()?[destination as usize] {
                             None => Err(PostmasterError::NoRecipient),
@@ -89,7 +99,7 @@ macro_rules! init_postmaster {
                 }
 
                 #[embassy::task]
-                pub(super) async fn delayed_send(destination: $address_enum, message: Message, delay: embassy::Duration, timeout: Option<embassy::Duration>) {
+                pub(super) async fn delayed_send(destination: Addresses, message: Message, delay: embassy::Duration, timeout: Option<embassy::Duration>) {
                     embassy::Timer::after(delay).await;
                     let source = message.source;
                     match send_internal(destination, message, timeout).await {
@@ -130,8 +140,10 @@ macro_rules! init_postmaster {
                         })
                 }
 
-                async fn report_send_error(destination: $address_enum, error: PostmasterError) {
-                    let error_report
+                async fn report_send_error(destination: Addresses, error: PostmasterError) {
+                    let error_report = Message {
+                        source: Address::None,
+                    }
                 }
             }
         }
