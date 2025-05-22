@@ -18,26 +18,27 @@ macro_rules! init_postmaster {
         mod postmaster {
             use super::{$address_enum, $payload_enum};
             use post_haste::PostmasterError;
+            use post_haste::embassy;
 
             const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
 
-            // #[macro_export]
-            // macro_rules! register_agent {
-            //     ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {{
-            //         use embassy_sync::channel::Channel;
-            //         static CHANNEL: Channel = Channel::new();
+            #[macro_export]
+            macro_rules! register_agent {
+                ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {{
+                    use embassy_sync::channel::Channel;
+                    static CHANNEL: Channel = Channel::new();
 
-            //         $spawner.must_spawn($agent::new(CHANNEL.receiver, $config));
-            //         unsafe { postmaster_internals::register_agent($agent_address, CHANNEL.sender) }
-            //     }};
-            // }
+                    $spawner.must_spawn($agent::new(CHANNEL.receiver, $config));
+                    postmaster_internals::register($agent_address, CHANNEL.sender)
+                }};
+            }
 
-            // pub fn register_mailbox(
-            //     address: $address_enum,
-            //     mailbox: DynamicSender<'static, $payload_enum>,
-            // ) -> Result<(), PostmasterError> {
-            //     unsafe { postmaster_internal::register_agent(address, mailbox) }
-            // }
+            pub async fn register(
+                address: $address_enum,
+                mailbox: embassy::DynamicSender<'static, Message>,
+            ) -> Result<(), PostmasterError> {
+                postmaster_internal::register(address, mailbox).await
+            }
 
             pub struct Message {
                 source: $address_enum,
@@ -50,6 +51,17 @@ macro_rules! init_postmaster {
                 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
                 use post_haste::embassy;
                 use embassy::WithTimeout;
+
+                pub(super) async fn register(address: $address_enum, mailbox: embassy::DynamicSender<'static, Message>) -> Result<(), PostmasterError> {
+                    let mut senders = POSTMASTER.senders.lock().await;
+                    if senders[address as usize].is_none() {
+                        senders[address as usize].replace(mailbox);
+                        Ok(())
+                    } else {
+                        return Err(PostmasterError::AddressAlreadyTaken);
+                    }
+
+                }
 
                 pub(super) async fn send_internal(
                     destination: $address_enum,
