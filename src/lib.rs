@@ -94,7 +94,16 @@ macro_rules! init_postmaster {
                     let source = message.source;
                     match send_internal(destination, message, timeout).await {
                         Ok(_) => (),
-                        Err(error) => report_send_error(source, error).await,
+                        Err(error) => (), // TODO: Can we find a way to convey back to the source that the sending failed?
+                    }
+                }
+
+                #[embassy::task]
+                pub(super) async fn delayed_try_send(destination: $address_enum, message: Message, delay: embassy::Duration) {
+                    embassy::Timer::after(delay).await;
+                    match try_send_internal(destination, message) {
+                        Ok(_) => (),
+                        Err(error) => (), // TODO: Can we find a way to convey back to the source that the sending failed?
                     }
                 }
 
@@ -128,10 +137,6 @@ macro_rules! init_postmaster {
                         .inspect_err(|_| {
                             POSTMASTER.send_failures.fetch_add(1, Ordering::Relaxed);
                         })
-                }
-
-                async fn report_send_error(destination: $address_enum, error: PostmasterError) {
-                    let error_report
                 }
             }
         }
