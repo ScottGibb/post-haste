@@ -1,3 +1,4 @@
+use embassy_executor::SpawnError;
 use embassy_sync::{channel::TrySendError, mutex::TryLockError};
 use embassy_time::TimeoutError;
 
@@ -7,6 +8,7 @@ pub enum PostmasterError {
     Timeout,
     TryLockFailed,
     TrySendFailed,
+    DelayedMessageTaskSpawnFailed,
 }
 
 impl From<TimeoutError> for PostmasterError {
@@ -24,5 +26,11 @@ impl From<TryLockError> for PostmasterError {
 impl<T> From<TrySendError<T>> for PostmasterError {
     fn from(_: TrySendError<T>) -> Self {
         Self::TrySendFailed
+    }
+}
+
+impl From<SpawnError> for PostmasterError {
+    fn from(_: SpawnError) -> Self {
+        Self::DelayedMessageTaskSpawnFailed
     }
 }

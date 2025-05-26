@@ -4,7 +4,7 @@ pub mod agent;
 pub mod error;
 
 pub mod embassy {
-    pub use embassy_executor::{task, Spawner};
+    pub use embassy_executor::{task, SpawnToken, Spawner};
     pub use embassy_sync::{
         blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex,
     };
@@ -40,9 +40,47 @@ macro_rules! init_postmaster {
                 postmaster_internal::register(address, mailbox).await
             }
 
-            pub struct Message {
+            pub async fn send(destination: $address_enum, source: $address_enum, payload: $payload_enum) -> Result<(), PostmasterError> {
+                postmaster_internal::send_internal(destination, Message{ source, payload }, None).await
+            }
+
+            pub fn try_send(destination: $address_enum, source: $address_enum, payload: $payload_enum) -> Result<(), PostmasterError> {
+                postmaster_internal::try_send_internal(destination, Message{ source, payload })
+            }
+
+            pub fn message(destination: $address_enum, source: $address_enum, payload: $payload_enum) -> MessageBuilder {
+                MessageBuilder { destination, message: Message{ source, payload }, timeout: None, delay: None }
+            }
+
+            impl MessageBuilder {
+                pub fn with_timeout(mut self, timeout: embassy::Duration) -> Self {
+                    self.timeout.replace(timeout);
+                    self
+                }
+
+                pub fn with_delay(mut self, delay: embassy::Duration) -> Self {
+                    self.delay.replace(delay);
+                    self
+                }
+
+                pub async fn send(self) -> Result<(), PostmasterError> {
+                    match self.delay {
+                        Some(delay) => postmaster_internal::spawn_delayed_send(self.destination, self.message, delay, self.timeout).await,
+                        None => postmaster_internal::send_internal(self.destination, self.message, self.timeout).await
+                    }
+                }
+            }
+
+            struct Message {
                 source: $address_enum,
                 payload: $payload_enum,
+            }
+
+            pub struct MessageBuilder {
+                destination: $address_enum,
+                message: Message,
+                timeout: Option<embassy::Duration>,
+                delay: Option<embassy::Duration>,
             }
 
             mod postmaster_internal {
@@ -98,6 +136,14 @@ macro_rules! init_postmaster {
                                 Ok(())
                             }
                         })
+                }
+
+                pub(super) async fn spawn_delayed_send(destination: $address_enum, message: Message, delay: embassy::Duration, timeout: Option<embassy::Duration>)  -> Result<(), PostmasterError> {
+                    if let Some(spawner) = *POSTMASTER.spawner.borrow(){
+                            Ok(spawner.spawn(delayed_send(destination, message, delay, timeout))?)
+                        } else {
+                            send_internal(destination, message, timeout).await
+                        }
                 }
 
                 #[embassy::task]
