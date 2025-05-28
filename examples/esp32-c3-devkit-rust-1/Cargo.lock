@@ -1004,7 +1004,7 @@ dependencies = [
  "embassy-executor",
  "embassy-sync",
  "embassy-time",
- "variant_count",
+ "portable-atomic",
 ]
 
 [[package]]
@@ -1355,16 +1355,6 @@ checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "variant_count"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aae2faf80ac463422992abf4de234731279c058aaf33171ca70277c98406b124"
-dependencies = [
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
