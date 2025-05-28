@@ -5,7 +5,7 @@ use post_haste::init_postmaster;
 
 enum Payloads {}
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum Addresses {}
 
 init_postmaster!(Addresses, Payloads);
