@@ -7,6 +7,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 use panic_rtt_target as _;
+use rtt_target::rprintln;
 
 extern crate alloc;
 
@@ -14,7 +15,7 @@ extern crate alloc;
 async fn main(spawner: Spawner) {
     // generator version: 0.3.1
 
-    rtt_target::rtt_init!();
+    rtt_target::rtt_init_print!();
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -23,6 +24,8 @@ async fn main(spawner: Spawner) {
 
     let timer0 = SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(timer0.alarm0);
+
+    rprintln!("Embassy initialised!");
 
     let timer1 = TimerGroup::new(peripherals.TIMG0);
     let _init = esp_wifi::init(
@@ -36,6 +39,7 @@ async fn main(spawner: Spawner) {
     let _ = spawner;
 
     loop {
+        rprintln!("Hello world!");
         Timer::after(Duration::from_secs(1)).await;
     }
 
