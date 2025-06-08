@@ -19,7 +19,7 @@ macro_rules! init_postmaster {
         mod postmaster {
             use super::{$address_enum, $payload_enum};
             use post_haste::PostmasterError;
-            use post_haste::dependencies;
+            use post_haste::dependencies::*;
 
             const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
 
@@ -36,7 +36,7 @@ macro_rules! init_postmaster {
 
             pub async fn register(
                 address: $address_enum,
-                mailbox: dependencies::DynamicSender<'static, Message>,
+                mailbox: DynamicSender<'static, Message>,
             ) -> Result<(), PostmasterError> {
                 postmaster_internal::register(address, mailbox).await
             }
@@ -54,12 +54,12 @@ macro_rules! init_postmaster {
             }
 
             impl MessageBuilder {
-                pub fn with_timeout(mut self, timeout: dependencies::Duration) -> Self {
+                pub fn with_timeout(mut self, timeout: Duration) -> Self {
                     self.timeout.replace(timeout);
                     self
                 }
 
-                pub fn with_delay(mut self, delay: dependencies::Duration) -> Self {
+                pub fn with_delay(mut self, delay: Duration) -> Self {
                     self.delay.replace(delay);
                     self
                 }
@@ -72,26 +72,25 @@ macro_rules! init_postmaster {
                 }
             }
 
-            struct Message {
-                source: $address_enum,
-                payload: $payload_enum,
+            pub struct Message {
+                pub source: $address_enum,
+                pub payload: $payload_enum,
             }
 
             pub struct MessageBuilder {
                 destination: $address_enum,
                 message: Message,
-                timeout: Option<dependencies::Duration>,
-                delay: Option<dependencies::Duration>,
+                timeout: Option<Duration>,
+                delay: Option<Duration>,
             }
 
             mod postmaster_internal {
                 use super::{ADDRESS_COUNT, $address_enum, Message, PostmasterError, $payload_enum};
                 use core::cell::RefCell;
                 use core::sync::atomic::{Ordering};
-                use post_haste::dependencies;
-                use dependencies::WithTimeout;
+                use post_haste::dependencies::*;
 
-                pub(super) async fn register(address: $address_enum, mailbox: dependencies::DynamicSender<'static, Message>) -> Result<(), PostmasterError> {
+                pub(super) async fn register(address: $address_enum, mailbox: DynamicSender<'static, Message>) -> Result<(), PostmasterError> {
                     let mut senders = POSTMASTER.senders.lock().await;
                     if senders[address as usize].is_none() {
                         senders[address as usize].replace(mailbox);
@@ -105,11 +104,11 @@ macro_rules! init_postmaster {
                 pub(super) async fn send_internal(
                     destination: $address_enum,
                     message: Message,
-                    timeout: Option<dependencies::Duration>,
+                    timeout: Option<Duration>,
                 ) -> Result<(), PostmasterError> {
                     let timeout = match timeout {
                         Some(duration) => duration,
-                        None => dependencies::Duration::from_micros(
+                        None => Duration::from_micros(
                             POSTMASTER.timeout_us.load(Ordering::Relaxed).into(),
                         ),
                     };
@@ -139,7 +138,7 @@ macro_rules! init_postmaster {
                         })
                 }
 
-                pub(super) async fn spawn_delayed_send(destination: $address_enum, message: Message, delay: dependencies::Duration, timeout: Option<dependencies::Duration>)  -> Result<(), PostmasterError> {
+                pub(super) async fn spawn_delayed_send(destination: $address_enum, message: Message, delay: Duration, timeout: Option<Duration>)  -> Result<(), PostmasterError> {
                     if let Some(spawner) = *POSTMASTER.spawner.borrow(){
                             Ok(spawner.spawn(delayed_send(destination, message, delay, timeout))?)
                         } else {
@@ -147,9 +146,9 @@ macro_rules! init_postmaster {
                         }
                 }
 
-                #[dependencies::task]
-                pub(super) async fn delayed_send(destination: $address_enum, message: Message, delay: dependencies::Duration, timeout: Option<dependencies::Duration>) {
-                    dependencies::Timer::after(delay).await;
+                #[task]
+                pub(super) async fn delayed_send(destination: $address_enum, message: Message, delay: Duration, timeout: Option<Duration>) {
+                    Timer::after(delay).await;
                     let source = message.source;
                     match send_internal(destination, message, timeout).await {
                         Ok(_) => (),
@@ -157,9 +156,9 @@ macro_rules! init_postmaster {
                     }
                 }
 
-                #[dependencies::task]
-                pub(super) async fn delayed_try_send(destination: $address_enum, message: Message, delay: dependencies::Duration) {
-                    dependencies::Timer::after(delay).await;
+                #[task]
+                pub(super) async fn delayed_try_send(destination: $address_enum, message: Message, delay: Duration) {
+                    Timer::after(delay).await;
                     match try_send_internal(destination, message) {
                         Ok(_) => (),
                         Err(error) => (), // TODO: Can we find a way to convey back to the source that the sending failed?
@@ -168,21 +167,21 @@ macro_rules! init_postmaster {
 
                 struct Postmaster<'a> {
                     senders:
-                        dependencies::Mutex<dependencies::NoopRawMutex, [Option<dependencies::DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
-                    timeout_us: dependencies::AtomicU32,
-                    spawner: RefCell<Option<dependencies::Spawner>>,
-                    messages_sent: dependencies::AtomicUsize,
-                    send_failures: dependencies::AtomicUsize,
+                        Mutex<NoopRawMutex, [Option<DynamicSender<'a, Message>>; ADDRESS_COUNT]>,
+                    timeout_us: AtomicU32,
+                    spawner: RefCell<Option<Spawner>>,
+                    messages_sent: AtomicUsize,
+                    send_failures: AtomicUsize,
                 }
 
                 unsafe impl Sync for Postmaster<'_> {}
 
                 static POSTMASTER: Postmaster = Postmaster {
-                    senders: dependencies::Mutex::new([None; ADDRESS_COUNT]),
-                    timeout_us: dependencies::AtomicU32::new(100),
+                    senders: Mutex::new([None; ADDRESS_COUNT]),
+                    timeout_us: AtomicU32::new(100),
                     spawner: RefCell::new(None),
-                    messages_sent: dependencies::AtomicUsize::new(0),
-                    send_failures: dependencies::AtomicUsize::new(0),
+                    messages_sent: AtomicUsize::new(0),
+                    send_failures: AtomicUsize::new(0),
                 };
 
                 #[inline]
