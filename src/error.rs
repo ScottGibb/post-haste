@@ -2,6 +2,7 @@ use embassy_executor::SpawnError;
 use embassy_sync::{channel::TrySendError, mutex::TryLockError};
 use embassy_time::TimeoutError;
 
+#[derive(Debug)]
 pub enum PostmasterError {
     AddressAlreadyTaken,
     NoRecipient,
