@@ -6,7 +6,9 @@ pub mod error;
 pub mod dependencies {
     pub use embassy_executor::{task, SpawnToken, Spawner};
     pub use embassy_sync::{
-        blocking_mutex::raw::NoopRawMutex, channel::DynamicSender, mutex::Mutex,
+        blocking_mutex::raw::NoopRawMutex,
+        channel::{Channel, DynamicSender},
+        mutex::Mutex,
     };
     pub use embassy_time::{Duration, Timer, WithTimeout};
     pub use portable_atomic::{AtomicU32, AtomicUsize};
@@ -25,12 +27,25 @@ macro_rules! init_postmaster {
 
             #[macro_export]
             macro_rules! register_agent {
-                ($spawner: ident, $agent_address:ident, $agent:ty, $config:ident) => {{
-                    use embassy_sync::channel::Channel;
-                    static CHANNEL: Channel = Channel::new();
+                ($spawner: ident, $agent_address:ident, $agent:ty, $config:expr) => {{
+                    use post_haste::dependencies::{NoopRawMutex, Channel, task};
+                    use crate::postmaster::Message;
+                    struct Mailbox {
+                        pub inner: Channel<NoopRawMutex, Message, 8>
+                    }
 
-                    $spawner.must_spawn($agent::new(CHANNEL.receiver, $config));
-                    postmaster_internals::register($agent_address, CHANNEL.sender)
+                    unsafe impl Sync for Mailbox{}
+                    static MAILBOX: Mailbox = Mailbox{ inner: Channel::new()};
+
+                    let agent = <$agent>::create(<$address_enum>::$agent_address, $config).await;
+                    postmaster::register(<$address_enum>::$agent_address, MAILBOX.inner.sender().into()).await.inspect(|_| {
+
+                        #[task]
+                        async fn run_agent(agent: $agent) {
+                            agent.run(MAILBOX.inner.receiver().into()).await
+                        }
+                        $spawner.must_spawn(run_agent(agent));
+                    })
                 }};
             }
 
