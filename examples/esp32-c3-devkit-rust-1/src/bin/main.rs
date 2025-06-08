@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use esp32_c3_devkit_rust_1::run;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
@@ -35,8 +36,7 @@ async fn main(spawner: Spawner) {
     )
     .unwrap();
 
-    // TODO: Spawn some tasks
-    let _ = spawner;
+    crate::run(spawner).await;
 
     loop {
         rprintln!("Hello world!");
