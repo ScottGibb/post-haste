@@ -27,11 +27,12 @@ macro_rules! init_postmaster {
 
             #[macro_export]
             macro_rules! register_agent {
-                ($spawner: ident, $agent_address:ident, $agent:ty, $config:expr) => {{
+                ($spawner:ident, $agent_address:ident, $agent:ty, $config:expr, $queue_size: expr) => {{
                     use post_haste::dependencies::{NoopRawMutex, Channel, task};
+                    use post_haste::agent::Agent;
                     use crate::postmaster::Message;
                     struct Mailbox {
-                        pub inner: Channel<NoopRawMutex, Message, 8>
+                        pub inner: Channel<NoopRawMutex, Message, $queue_size>
                     }
 
                     unsafe impl Sync for Mailbox{}
@@ -47,6 +48,9 @@ macro_rules! init_postmaster {
                         $spawner.must_spawn(run_agent(agent));
                     })
                 }};
+                ($spawner:ident, $agent_address:ident, $agent:ty, $config:expr) => {
+                    register_agent!($spawner, $agent_address, $agent, $config, 1)
+                }
             }
 
             pub async fn register(

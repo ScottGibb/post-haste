@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(variant_count)]
 
-use post_haste::agent::Agent;
 use embassy_executor::Spawner;
 use post_haste::init_postmaster;
 
@@ -23,7 +22,7 @@ init_postmaster!(Addresses, Payloads);
 
 pub async fn run(spawner: Spawner) {
     register_agent!(spawner, A, PoliteAgent, ()).unwrap();
-    register_agent!(spawner, B, PoliteAgent, ()).unwrap();
+    register_agent!(spawner, B, PoliteAgent, (), 2).unwrap();
 
     postmaster::send(Addresses::A, Addresses::B, Payloads::Hello).await.unwrap();
 }
