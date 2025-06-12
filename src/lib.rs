@@ -4,6 +4,7 @@ pub mod agent;
 pub mod error;
 
 pub mod dependencies {
+    pub use const_env::from_env;
     pub use embassy_executor::{task, SpawnToken, Spawner};
     pub use embassy_sync::{
         blocking_mutex::raw::NoopRawMutex,
@@ -109,6 +110,9 @@ macro_rules! init_postmaster {
                 use core::sync::atomic::{Ordering};
                 use post_haste::dependencies::*;
 
+                #[post_haste::dependencies::from_env]
+                const DELAYED_MESSAGE_POOL_SIZE: usize = 8;
+
                 pub(super) async fn register(address: $address_enum, mailbox: DynamicSender<'static, Message>) -> Result<(), PostmasterError> {
                     let mut senders = POSTMASTER.senders.lock().await;
                     if senders[address as usize].is_none() {
@@ -165,7 +169,7 @@ macro_rules! init_postmaster {
                         }
                 }
 
-                #[task]
+                #[task(pool_size=DELAYED_MESSAGE_POOL_SIZE)]
                 pub(super) async fn delayed_send(destination: $address_enum, message: Message, delay: Duration, timeout: Option<Duration>) {
                     Timer::after(delay).await;
                     let source = message.source;
@@ -175,7 +179,7 @@ macro_rules! init_postmaster {
                     }
                 }
 
-                #[task]
+                #[task(pool_size=DELAYED_MESSAGE_POOL_SIZE)]
                 pub(super) async fn delayed_try_send(destination: $address_enum, message: Message, delay: Duration) {
                     Timer::after(delay).await;
                     match try_send_internal(destination, message) {
