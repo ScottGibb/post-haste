@@ -97,14 +97,14 @@ macro_rules! init_postmaster {
             }
 
             #[cfg(not(target_os = "none"))]
-            pub type RunTimeSender = Sender<Message>;
+            pub type Mailbox = Sender<Message>;
             #[cfg(target_os = "none")]
-            pub type RunTimeSender = DynamicSender<'static, Message>;
+            pub type Mailbox = DynamicSender<'static, Message>;
 
 
             pub async fn register(
                 address: $address_enum,
-                mailbox: RunTimeSender,
+                mailbox: Mailbox,
             ) -> Result<(), PostmasterError> {
                 postmaster_internal::register(address, mailbox).await
             }
@@ -188,7 +188,7 @@ macro_rules! init_postmaster {
             mod postmaster_internal {
                 use super::{
                     ADDRESS_COUNT, Message, PostmasterError, $address_enum, $payload_enum,
-                    RunTimeSender
+                    Mailbox
                 };
                 use core::cell::RefCell;
                 use core::sync::atomic::Ordering;
@@ -198,7 +198,7 @@ macro_rules! init_postmaster {
 
                 pub(super) async fn register(
                     address: $address_enum,
-                    mailbox: RunTimeSender,
+                    mailbox: Mailbox,
                 ) -> Result<(), PostmasterError> {
                     let mut senders = POSTMASTER.senders.lock().await;
                     if senders[address as usize].is_none() {
@@ -315,7 +315,7 @@ macro_rules! init_postmaster {
 
                 #[cfg(not(target_os = "none"))]
                 struct Postmaster {
-                    senders: Mutex<[Option<RunTimeSender>; ADDRESS_COUNT]>,
+                    senders: Mutex<[Option<Mailbox>; ADDRESS_COUNT]>,
                     timeout_us: AtomicU32,
                     messages_sent: AtomicUsize,
                     send_failures: AtomicUsize,
