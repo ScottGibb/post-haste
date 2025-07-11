@@ -8,13 +8,16 @@ const_env = "0.1.2"
 
 # Embassy Dependencies
 [target.'cfg(target_os = "none")'.dependencies]
-embassy-executor = {version="0.7.0"}
-embassy-sync = {version="0.6.2"}
-embassy-time = {version ="0.4.0"}
-portable-atomic = { version = "1.11.0", features = ["unsafe-assume-single-core"]}
+embassy-executor = { version = "0.7.0" }
+embassy-sync = { version = "0.6.2" }
+embassy-time = { version = "0.4.0" }
+portable-atomic = { version = "1.11.0", features = [
+    "unsafe-assume-single-core",
+] }
+
 
 # Tokio Dependencies
 [target.'cfg(not(target_os = "none"))'.dependencies]
-tokio = {version = "1.45.1", features = ["full"]}
-once_cell = {version ="1.21.3"}
-portable-atomic = { version = "1.11.0"}
+tokio = { version = "1.45.1", features = ["full"] }
+once_cell = { version = "1.21.3" }
+portable-atomic = { version = "1.11.0" }
