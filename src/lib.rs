@@ -236,7 +236,7 @@ macro_rules! init_postmaster {
                     #[cfg(target_os = "none")]
                     evaluate_diagnostics(
                         async {
-                            match POSTMASTER.senders.lock().await[destination as usize] {
+                            match &POSTMASTER.senders.lock().await[destination as usize] {
                                 None => Err(PostmasterError::NoRecipient),
                                 Some(sender) => {
                                     sender.send(message).await;
