@@ -285,7 +285,7 @@ macro_rules! init_postmaster {
 
                 }
 
-                #[cfg_attr(target_os = "none",task(pool_size=DELAYED_MESSAGE_POOL_SIZE))]
+                #[cfg_attr(target_os = "none", task(pool_size=DELAYED_MESSAGE_POOL_SIZE))]
                 pub(super) async fn delayed_send(
                     destination: $address_enum,
                     message: Message,
