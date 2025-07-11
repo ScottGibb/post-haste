@@ -225,7 +225,7 @@ macro_rules! init_postmaster {
                         match &POSTMASTER.senders.lock().await[destination as usize] {
                             None => Err(PostmasterError::NoRecipient),
                             Some(sender) => {
-                                sender.send(message).await.unwrap(); //TODO: Handle this correctly
+                                sender.send(message).await?;
                                 Ok(())
                             }
                         }
