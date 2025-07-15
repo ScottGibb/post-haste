@@ -1,0 +1,15 @@
+{
+  "[markdown]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+  },
+  "[rust]": {
+    "editor.formatOnSave": true
+  },
+  "[toml]": {
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.formatOnSave": true
+  }
+}

@@ -5,7 +5,19 @@ edition = "2024"
 
 [dependencies]
 const_env = "0.1.2"
-embassy-executor = "0.7.0"
-embassy-sync = "0.6.2"
-embassy-time = "0.4.0"
-portable-atomic = { version = "1.11.0", features = ["unsafe-assume-single-core"] }
+
+# Embassy Dependencies
+[target.'cfg(target_os = "none")'.dependencies]
+embassy-executor = { version = "0.7.0" }
+embassy-sync = { version = "0.6.2" }
+embassy-time = { version = "0.4.0" }
+portable-atomic = { version = "1.11.0", features = [
+    "unsafe-assume-single-core",
+] }
+
+
+# Tokio Dependencies
+[target.'cfg(not(target_os = "none"))'.dependencies]
+tokio = { version = "1.45.1", features = ["full"] }
+once_cell = { version = "1.21.3" }
+portable-atomic = { version = "1.11.0" }
