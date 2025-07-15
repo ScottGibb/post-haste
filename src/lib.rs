@@ -273,9 +273,10 @@ macro_rules! init_postmaster {
                 ) -> Result<(), PostmasterError> {
 
                     #[cfg(not(target_os = "none"))]
-                    let handle = tokio::spawn(delayed_send(destination, message, delay, timeout));
-                    #[cfg(not(target_os = "none"))]
-                    return Ok(());
+                    {
+                        let _ = tokio::spawn(delayed_send(destination, message, delay, timeout));
+                        Ok(())
+                    }
                     #[cfg(target_os = "none")]
                     if let Some(spawner) = *POSTMASTER.spawner.borrow(){
                             Ok(spawner.spawn(delayed_send(destination, message, delay, timeout))?)
