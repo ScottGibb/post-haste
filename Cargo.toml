@@ -1,6 +1,6 @@
 [package]
 name = "post-haste"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 
 [dependencies]
@@ -12,7 +12,7 @@ embassy-executor = { version = "0.7.0" }
 embassy-sync = { version = "0.6.2" }
 embassy-time = { version = "0.4.0" }
 portable-atomic = { version = "1.11.0", features = [
-    "unsafe-assume-single-core",
+  "unsafe-assume-single-core",
 ] }
 
 
