@@ -6,7 +6,7 @@ pub mod imports {
 }
 #[cfg(not(target_os = "none"))]
 pub mod imports {
-    pub use tokio::sync::{TryLockError, mpsc::error::SendError, mpsc::error::TrySendError};
+    pub use tokio::sync::{mpsc::error::SendError, mpsc::error::TrySendError, TryLockError};
 }
 
 use imports::*;
@@ -18,7 +18,7 @@ pub enum PostmasterError {
     Timeout,
     TryLockFailed,
     #[cfg(not(target_os = "none"))]
-    SendFailed, // Tokio Specific
+    ReceiverClosed, // Tokio Specific
     TrySendFailed,
     DelayedMessageTaskSpawnFailed,
 }
@@ -52,6 +52,6 @@ impl From<SpawnError> for PostmasterError {
 #[cfg(not(target_os = "none"))]
 impl<T> From<SendError<T>> for PostmasterError {
     fn from(_: SendError<T>) -> Self {
-        Self::TrySendFailed
+        Self::ReceiverClosed
     }
 }
