@@ -6,15 +6,15 @@ pub mod error;
 #[cfg(not(target_os = "none"))]
 pub mod async_runtime_dependencies {
     pub use once_cell::sync::Lazy;
+    pub use tokio::sync::mpsc::{channel, Receiver, Sender};
     pub use tokio::sync::Mutex;
-    pub use tokio::sync::mpsc::{Receiver, Sender, channel};
     pub use tokio::task;
     pub use tokio::time;
     pub use tokio::time::Duration;
 }
 #[cfg(target_os = "none")]
 pub mod async_runtime_dependencies {
-    pub use embassy_executor::{SpawnToken, Spawner, task};
+    pub use embassy_executor::{task, SpawnToken, Spawner};
     pub use embassy_sync::{
         blocking_mutex::raw::NoopRawMutex,
         channel::{Channel, DynamicSender},
@@ -139,6 +139,10 @@ macro_rules! init_postmaster {
                 }
             }
 
+            pub fn get_diagnostics() -> Diagnostics {
+                postmaster_internal::get_diagnostics()
+            }
+
             impl MessageBuilder {
                 pub fn with_timeout(mut self, timeout: Duration) -> Self {
                     self.timeout.replace(timeout);
@@ -183,6 +187,11 @@ macro_rules! init_postmaster {
                 message: Message,
                 timeout: Option<Duration>,
                 delay: Option<Duration>,
+            }
+
+            pub struct Diagnostics {
+                pub messages_sent: usize,
+                pub send_failures: usize,
             }
 
             mod postmaster_internal {
@@ -311,6 +320,13 @@ macro_rules! init_postmaster {
                     match try_send_internal(destination, message) {
                         Ok(_) => (),
                         Err(error) => (), // TODO: Can we find a way to convey back to the source that the sending failed?
+                    }
+                }
+
+                pub(super) fn get_diagnostics() -> super::Diagnostics{
+                    super::Diagnostics {
+                        messages_sent: POSTMASTER.messages_sent.load(Ordering::Relaxed),
+                        send_failures: POSTMASTER.send_failures.load(Ordering::Relaxed),
                     }
                 }
 
