@@ -6,7 +6,7 @@ pub mod imports {
 }
 #[cfg(not(target_os = "none"))]
 pub mod imports {
-    pub use tokio::sync::{mpsc::error::SendError, mpsc::error::TrySendError, TryLockError};
+    pub use tokio::sync::{TryLockError, mpsc::error::SendError, mpsc::error::TrySendError};
 }
 
 use imports::*;
