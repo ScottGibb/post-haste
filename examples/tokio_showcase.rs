@@ -51,6 +51,11 @@ mod polite_agent {
         reply_delay: Duration,
     }
 
+    /// This struct is the associated config for the PoliteAgent.
+    /// When implementing the Agent trait, we can provide an associated type called Config, which signals to the Postmaster that we expect the Agent to be configured with this config struct when the Agent is registered and instantiated
+    /// /// This struct is the associated config for the PoliteAgent.
+    /// When implementing the Agent trait, we can provide an associated type called Config, which signals to the Postmaster that we expect the Agent to be configured with this config struct when the Agent is registered and instantiated.
+    /// Note that the two fields in this struct correspond to the two fields in the PoliteAgent struct which were described as being used to configure it
     pub(super) struct PoliteAgentConfig {
         pub custom_greeting: Option<String>,
         pub reply_delay: Duration,
