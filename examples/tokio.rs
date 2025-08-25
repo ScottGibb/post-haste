@@ -1,183 +1,79 @@
 #![feature(variant_count)]
 
-// TODO: Add docstrings to explain the concepts laid out here
-
 use core::time::Duration;
 
-use polite_agent::{PoliteAgent, PoliteAgentConfig, PoliteAgentMessage};
 use post_haste::init_postmaster;
 use tokio::time::sleep;
 
+use crate::polite_actor::PoliteAgent;
+
 enum Payloads {
-    PoliteMessage(PoliteAgentMessage),
+    Hello,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Address {
-    AgentA,
-    AgentB,
-    AgentC,
+enum Addresses {
+    A,
+    B,
 }
 
-init_postmaster!(Address, Payloads);
+init_postmaster!(Addresses, Payloads);
 
 #[tokio::main]
 async fn main() {
-    register_agent!(
-        AgentA,
-        PoliteAgent,
-        PoliteAgentConfig {
-            custom_greeting: None,
-            reply_delay: Duration::from_secs(1)
-        }
-    );
-    register_agent!(
-        AgentB,
-        PoliteAgent,
-        PoliteAgentConfig {
-            custom_greeting: Some("Good day!".to_string()),
-            reply_delay: Duration::from_secs(2)
-        }
-    );
-    register_agent!(
-        AgentC,
-        PoliteAgent,
-        PoliteAgentConfig {
-            custom_greeting: Some("Ahoy!".to_string()),
-            reply_delay: Duration::from_secs(3)
-        }
-    );
-
-    postmaster::send(
-        Address::AgentA,
-        Address::AgentB,
-        Payloads::PoliteMessage(PoliteAgentMessage::Hello),
-    )
-    .await
-    .unwrap();
-    postmaster::send(
-        Address::AgentB,
-        Address::AgentC,
-        Payloads::PoliteMessage(PoliteAgentMessage::Hello),
-    )
-    .await
-    .unwrap();
-    postmaster::send(
-        Address::AgentC,
-        Address::AgentA,
-        Payloads::PoliteMessage(PoliteAgentMessage::Hello),
-    )
-    .await
-    .unwrap();
+    println!("hello");
+    run().await;
 
     loop {
-        sleep(Duration::from_secs(60)).await;
-        let diagnostics = postmaster::get_diagnostics();
-        println!("Postmaster diagnostics:");
-        println!("Messages sent: {}", diagnostics.messages_sent);
-        println!("Send failures: {}", diagnostics.send_failures);
+        println!("Hello world!");
+        sleep(Duration::from_secs(1)).await;
     }
 }
+pub async fn run() {
+    register_agent!(A, PoliteAgent, ());
+    register_agent!(B, PoliteAgent, (), 2);
+    postmaster::send(Addresses::A, Addresses::B, Payloads::Hello)
+        .await
+        .unwrap();
+}
 
-mod polite_agent {
-    use crate::{Address, Payloads, postmaster};
-    use core::time::Duration;
-    use post_haste::agent::Agent;
+mod polite_actor {
+    use post_haste::agent::{Agent, Inbox};
+    use tokio::time::Duration;
+    use tokio::time::sleep;
 
-    pub(super) struct PoliteAgent {
-        address: Address,
-        greeting: Option<String>,
-        reply_delay: Duration,
-    }
+    use crate::{Addresses, Payloads, postmaster};
 
-    pub(super) struct PoliteAgentConfig {
-        pub custom_greeting: Option<String>,
-        pub reply_delay: Duration,
-    }
-
-    pub(super) enum PoliteAgentMessage {
-        Hello,
-        Greeting(String),
-    #[allow(private_interfaces)]
-        Internal(InternalMessage),
-    }
-
-    enum InternalMessage {
-        TimerExpired { hello_source: Address },
+    pub(crate) struct PoliteAgent {
+        address: Addresses,
     }
 
     impl Agent for PoliteAgent {
-        type Address = Address;
-
+        type Address = Addresses;
         type Message = postmaster::Message;
+        type Config = ();
 
-        type Config = PoliteAgentConfig;
-
-        async fn create(address: Self::Address, config: Self::Config) -> Self {
-            Self {
-                address,
-                greeting: config.custom_greeting,
-                reply_delay: config.reply_delay,
-            }
+        async fn create(address: Self::Address, _config: Self::Config) -> Self {
+            Self { address }
         }
 
-        async fn run(mut self, mut inbox: post_haste::agent::Inbox<Self::Message>) -> ! {
+        async fn run(self, mut inbox: Inbox<Self::Message>) -> ! {
             loop {
                 let received_message = inbox.recv().await.unwrap();
-                match received_message.payload {
-                    crate::Payloads::PoliteMessage(PoliteAgentMessage::Hello) => {
-                        self.handle_hello(received_message.source).await
-                    }
-                    crate::Payloads::PoliteMessage(PoliteAgentMessage::Greeting(greeting)) => {
-                        self.handle_greeting(received_message.source, &greeting)
-                            .await
-                    }
-                    crate::Payloads::PoliteMessage(PoliteAgentMessage::Internal(
-                        InternalMessage::TimerExpired { hello_source },
-                    )) => self.send_reply(hello_source).await,
-                }
+                match &received_message.payload {
+                    Payloads::Hello => self.handle_hello(received_message.source).await,
+                };
             }
         }
     }
 
     impl PoliteAgent {
-        async fn handle_hello(&mut self, source: Address) {
-            println!("{:?} got hello from {source:?}", self.address);
-            self.start_timer(source).await
-        }
-
-        async fn handle_greeting(&mut self, source: Address, greeting: &str) {
-            println!(
-                "{:?} got greeting from {source:?}: {greeting}",
-                self.address
-            );
-            self.start_timer(source).await
-        }
-
-        async fn send_reply(&mut self, destination: Address) {
-            let payload = if let Some(greeting) = &self.greeting {
-                Payloads::PoliteMessage(PoliteAgentMessage::Greeting(greeting.to_string()))
-            } else {
-                Payloads::PoliteMessage(PoliteAgentMessage::Hello)
-            };
-
-            postmaster::send(destination, self.address, payload)
+        async fn handle_hello(&self, source: Addresses) {
+            println!("{:?} got hello from {:?}!", self.address, source);
+            sleep(Duration::from_secs(1)).await;
+            postmaster::send(source, self.address, Payloads::Hello)
                 .await
                 .unwrap();
-        }
-
-        async fn start_timer(&mut self, hello_source: Address) {
-            postmaster::message(
-                self.address,
-                self.address,
-                Payloads::PoliteMessage(PoliteAgentMessage::Internal(
-                    InternalMessage::TimerExpired { hello_source },
-                )),
-            )
-            .with_delay(self.reply_delay)
-            .send()
-            .await
-            .unwrap();
         }
     }
 }
