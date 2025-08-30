@@ -76,7 +76,12 @@ mod polite_agent {
     }
 
 
+    /// This enum contains any messages which are private to the PoliteAgent.
+    /// This avoids polluting the public `PoliteAgentMessage` namespace with messages which are not relevant outside of this module.
     enum InternalMessage {
+        /// The PoliteAgent sends this message to itself with a delay, so when the message is received it indicates that the timer has expired.
+        /// This is a simple  way of running an asynchronous timer without needing to select on multiple futures.
+        /// Note that as this uses the Mailbox, timing precision may be affected (if there are other messages in the queue they will be processed first).
         TimerExpired { hello_source: Address },
     }
 
