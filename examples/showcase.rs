@@ -18,6 +18,9 @@ use tokio::time::sleep;
 enum Payloads {
     /// This variant covers all messages associated with the Polite Agent.
     PoliteMessage(PoliteAgentMessage),
+    /// This variant is being used to demonstrate the default match case for handling messaged within Agents.
+    #[allow(dead_code)]
+    Unsupported,
 }
 
 /// This enum provides all Agent addresses.
@@ -137,8 +140,6 @@ mod polite_agent {
                     crate::Payloads::PoliteMessage(PoliteAgentMessage::Internal(
                         InternalMessage::TimerExpired { hello_source },
                     )) => self.send_reply(hello_source).await,
-                    // Note: In this case there are only three messages defined and they are all relevant to the PoliteAgent, so this default arm is unnecessary.
-                    // In most systems however this will not be the case.
                     // It is advisable to create a generic handler for unsupported messages to make this arm quick and easy to implement.
                     _ => crate::handle_unsupported(self.address, received_message),
                 }
@@ -211,8 +212,12 @@ mod polite_agent {
     }
 }
 
+/// In the `main` function, we configure and register each of our Agents.
+/// Then, in order to get them to start talking to each other, we send a hello to each with the source set to one of the others.
+/// This will start a never-ending cycle where the Agents will exchange pleasant greetings!
 #[tokio::main]
 async fn main() {
+    // This agent is configured with no custom greeting, so will reply with a generic hello message
     register_agent!(
         AgentA,
         PoliteAgent,
@@ -221,6 +226,7 @@ async fn main() {
             reply_delay: Duration::from_secs(1)
         }
     );
+    // This agent has a fancy custom greeting, so will use this in its replies instead!
     register_agent!(
         AgentB,
         PoliteAgent,
@@ -229,13 +235,18 @@ async fn main() {
             reply_delay: Duration::from_secs(2)
         }
     );
+    // As well as having its own custom greeting, this Agent also has been given an expanded message queue size!
+    // Each Agent mailbox can be sized independently.
+    // Mailboxes use static memory, so the larger the mailbox the more static memory will be needed.
+    // This is not so much of a concern for applications running on a full OS, but is an important consideration in resource-constrained embedded devices.
     register_agent!(
         AgentC,
         PoliteAgent,
         PoliteAgentConfig {
             custom_greeting: Some("Ahoy!".to_string()),
             reply_delay: Duration::from_secs(3)
-        }
+        },
+        2
     );
 
     postmaster::send(
@@ -260,6 +271,10 @@ async fn main() {
     .await
     .unwrap();
 
+    // This loop makes sure that the application continues to run indefinitely, until a termination signal is received.
+    // It showcases the `diagnostics()` function, which simply returns a running total of the number of messages successfully sent, as well as a count of any send failures.
+    // The idea of this is as a high-level overview for the developer, to keep an eye on whether there are any communication issues within the application.
+    // Failures are most commonly caused by timeouts due to full mailboxes - the error Result type returned by the Postmaster in these instances gives more information on the cause.
     loop {
         sleep(Duration::from_secs(60)).await;
         let diagnostics = postmaster::get_diagnostics();
@@ -269,6 +284,7 @@ async fn main() {
     }
 }
 
+/// Simple helper function to alert the developer that an unexpected message was received by an Agent.
 fn handle_unsupported(my_address: Address, message: postmaster::Message) {
     eprintln!("Agent {my_address:?} got an unsupported message from {:?}: {:?}", message.source, message.payload)
 }
