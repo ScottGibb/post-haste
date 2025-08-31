@@ -118,6 +118,7 @@ mod polite_agent {
         /// As indicated by the "never" return type this function is expected not to return, meaning that the Agent is expected to exist for the full lifetime of the application.
         /// The function takes ownership of `self`, which makes sure that the instance of the Agent is fully encapsulated and has complete control over its own state.
         /// The other argument this function accepts is the Agent's Inbox (the rx side of the channel).
+        /// Again, this function is called automatically by the postmaster as part of the `register_agent!()` call.
         /// A typical `run()` function will be an infinite loop where each iteration of the loop awaits a new message, matches on the message type and then calls a handler to deal with that message.
         /// Some Agents may need to monitor other asynchronous events concurrently with their inbox.
         /// In these cases, the events cannot be awaited consecutively, as for example this may mean that the Agent will not process any incoming messages until it has handled a separate future which it was awaiting.
@@ -145,12 +146,17 @@ mod polite_agent {
         }
     }
 
+    /// This block contains all of the PoliteAgent's message handlers
     impl PoliteAgent {
+        /// The Agent has received a generic hello message from somewhere.
+        /// All this function needs to do is report that the message was received and then start a timer for the configured delay before replying.
         async fn handle_hello(&mut self, source: Address) {
             println!("{:?} got hello from {source:?}", self.address);
             self.start_timer(source).await
         }
 
+        /// The Agent has received a fancy hello message with a custom greeting!
+        /// It reads out the greeting, and then triggers the timer in the same way as the handler above.
         async fn handle_greeting(&mut self, source: Address, greeting: &str) {
             println!(
                 "{:?} got greeting from {source:?}: {greeting}",
@@ -159,6 +165,12 @@ mod polite_agent {
             self.start_timer(source).await
         }
 
+        /// The Agent has been notified that a reply timer has expired and it is now time to send the reply.
+        /// The `TimerExpired` message contains information on the original source of the message which needs to be replied to, so this is used as the destination in this function.
+        /// First, the function checks whether the Agent is configured with a custom greeting.
+        /// If so, this is used to generate a `Greeting` message payload.
+        /// Otherwise, a generic `Hello` message payload is used.
+        /// Payload defined, the polite reply can then be sent.
         async fn send_reply(&mut self, destination: Address) {
             let payload = if let Some(greeting) = &self.greeting {
                 Payloads::PoliteMessage(PoliteAgentMessage::Greeting(greeting.to_string()))
@@ -171,6 +183,18 @@ mod polite_agent {
                 .unwrap();
         }
 
+    }
+
+    /// Creating a new block here isn't strictly necessary, however I like to keep message handlers in one block and other methods in a separate block
+    impl PoliteAgent {
+        /// When a PoliteAgent receives a greeting, it waits for a respectable amount of time before replying.
+        /// This delay is configured as part of the Config struct passed in on registration of the Agent.
+        /// Simply calling `tokio::time::sleep().await` will result in poor performance of the Agent, as it won't be able to handle any new messages arriving in its inbox until it is done waiting to send its reply to the previous one.
+        /// Another option would be to acquire the future from `tokio::time::sleep()` and then use `select` on it along with the inbox future in order to monitor both futures concurrently.
+        /// This gets complicated very quickly however.
+        /// A much simpler way is to use the Postmaster's message builder to build a message with a delay.
+        /// The Agent builds a `TimerExpired` message, setting itself as the destination, and configures the message to be delayed by its configured amount.
+        /// This means the Agent can immediately finish handling the message it just received and return to monitoring its inbox, safe in the knowledge that once the delay period is over, the TimerExpired message will appear in its inbox, prompting it to send its reply.
         async fn start_timer(&mut self, hello_source: Address) {
             postmaster::message(
                 self.address,
