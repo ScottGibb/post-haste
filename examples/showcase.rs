@@ -1,6 +1,6 @@
 //! The purpose of this example is to demonstrate some useful patterns and concepts which take advantage of the post-haste library to great effect.
 //! This example uses tokio, however all of the concepts shown here apply equally to Embassy.
-//! The logic of this example is very similar to that of the [tokio_basic](tokio_basic.rs)example: simple Agents are created which respond to a "hello" message in kind.
+//! The logic of this example is very similar to that of the [tokio_basic](tokio_basic.rs) example: simple Agents are created which respond to a "hello" message in kind.
 //! "Hello" messages are then sent from the main task to the Agents, with the source address given as one of the other Agents.
 //! This will prompt the Agent to respond with its own "hello" back to the source, initiating an infinite loop.
 
