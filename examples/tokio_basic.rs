@@ -1,3 +1,4 @@
+//! This example provides a very simple scenario of two Agents exchanging messages with each other.
 #![feature(variant_count)]
 
 use core::time::Duration;
@@ -5,7 +6,7 @@ use core::time::Duration;
 use post_haste::init_postmaster;
 use tokio::time::sleep;
 
-use crate::polite_actor::PoliteAgent;
+use crate::polite_agent::PoliteAgent;
 
 enum Payloads {
     Hello,
@@ -37,7 +38,7 @@ pub async fn run() {
         .unwrap();
 }
 
-mod polite_actor {
+mod polite_agent {
     use post_haste::agent::{Agent, Inbox};
     use tokio::time::Duration;
     use tokio::time::sleep;
