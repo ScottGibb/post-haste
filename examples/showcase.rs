@@ -33,8 +33,8 @@ enum Address {
     AgentC,
 }
 
-/// This macro call generates all the functionality associated with the Postmaster.
-/// The Address and Payload enum types are provided as arguments, as they are required for the functionality of the Postmaster.
+// This macro call generates all the functionality associated with the Postmaster.
+// The Address and Payload enum types are provided as arguments, as they are required for the functionality of the Postmaster.
 init_postmaster!(Address, Payloads);
 
 /// This module provides all functionality and types associated with the Polite Agent.
