@@ -37,6 +37,10 @@ The following forms the core of the code layout for a baremetal project built up
 ```rust
 #![no_std]
 
+// NOTE: This feature is currently required in order to generate the correct number of mailboxes based on the number of provided addresses (avoiding alloc)
+// Therefore, the project must be compiled with the nightly compiler
+#![feature(variant_count)]
+
 use embassy_executor::Spawner;
 
 use post_haste::agent::Agent;
