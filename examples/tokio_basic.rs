@@ -1,3 +1,4 @@
+//! This example provides a very simple scenario of two Agents exchanging messages with each other.
 #![feature(variant_count)]
 
 use core::time::Duration;
