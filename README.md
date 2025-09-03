@@ -33,8 +33,75 @@ Please note: the `Message` and `Address` associated types in the `Agent` trait c
 I have so far not come up with a way to eliminate this boiler-plate.
 
 ## Example usage
+The following forms the core of the code layout for a baremetal project built upon post_haste (excluding any architecture-specific code and dependencies):
 ```rust
-#[no_std]
+#![no_std]
 
+use embassy_executor::Spawner;
 
+use post_haste::agent::Agent;
+use post_haste::init_postmaster;
+
+/// The list of Agent addresses, used to identify the source and destination for messages.
+/// Each Agent must have a unique address
+enum Address {
+  AgentA,
+  AgentB,
+  // ...
+}
+
+/// Top-level definition of messages used in the system.
+enum Payloads {
+  General(GeneralPayloads),
+  // ...
+}
+
+/// A sub-category of messages (this heirachical ordering isn't necessary, but is highly recommended for organisation)
+enum GeneralPayloads {
+  Hello,
+  // ...
+}
+
+// Generates the postmaster logic and initialises the postmaster for use within the project
+init_postmaster!(Address, Payloads);
+
+struct MyAgent {
+  address: Address
+}
+
+impl Agent for MyAgent {
+  type Address = Address;
+  type Message = postmaster::Message;
+  type Config = ();
+
+  async fn create(address: Self::Address, _: Self::Config) -> Self {
+    // Initialisation code goes here...
+    Self { address }
+  }
+
+  async fn run(self, inbox: post_haste::agent::Inbox<Self::Message>) -> ! {
+    loop {
+      let received_message = inbox.recv().await.unwrap();
+      match received_message {
+        Payloads::Hello => postmaster::send(received_message.source, self.address, Payloads::Hello).await.unwrap();
+        // ...
+      }
+    }
+  }
+}
+
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+  const QUEUE_SIZE: usize = 8;
+  postmaster::register_agent!(spawner, AgentA, MyAgent, ());
+  postmaster::register_agent!(spawner, AgentB, MyAgent, (), QUEUE_SIZE);
+
+  loop {
+    // ...
+  }
+}
 ```
+
+While the framework was originally developed for no_std baremetal environments, it is also fully compatible with tokio.
+- [tokio_basic.rs](examples/tokio_basic.rs) gives a very simple example of two Agents exchanging messages.
+- [showcase.rs](examples/showcase.rs) follows the same concept, but aims to demonstrate some useful patterns within the framework.
