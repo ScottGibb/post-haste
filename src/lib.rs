@@ -6,15 +6,15 @@ pub mod error;
 #[cfg(not(target_os = "none"))]
 pub mod async_runtime_dependencies {
     pub use once_cell::sync::Lazy;
-    pub use tokio::sync::mpsc::{channel, Receiver, Sender};
     pub use tokio::sync::Mutex;
+    pub use tokio::sync::mpsc::{Receiver, Sender, channel};
     pub use tokio::task;
     pub use tokio::time;
     pub use tokio::time::Duration;
 }
 #[cfg(target_os = "none")]
 pub mod async_runtime_dependencies {
-    pub use embassy_executor::{task, SpawnToken, Spawner};
+    pub use embassy_executor::{SpawnToken, Spawner, task};
     pub use embassy_sync::{
         blocking_mutex::raw::NoopRawMutex,
         channel::{Channel, DynamicSender},
@@ -73,6 +73,7 @@ macro_rules! init_postmaster {
                 ($spawner:ident, $agent_address:ident, $agent:ty, $config:expr, $queue_size: expr) => {{
                     use post_haste::dependencies::{NoopRawMutex, Channel, task};
                     use post_haste::agent::Agent;
+                    #[allow(clippy::crate_in_macro_def)]
                     use crate::postmaster::Message;
                     struct Mailbox {
                         pub inner: Channel<NoopRawMutex, Message, $queue_size>

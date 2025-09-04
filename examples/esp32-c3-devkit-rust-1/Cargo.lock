@@ -1130,7 +1130,7 @@ dependencies = [
 
 [[package]]
 name = "post-haste"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "const_env",
  "embassy-executor",
