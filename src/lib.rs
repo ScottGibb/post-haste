@@ -206,6 +206,15 @@ macro_rules! init_postmaster {
             }
 
 
+            /// Send a message using the Postmaster's default timeout
+            /// The Postmaster will attempt to push the message onto the destination Agent's queue.
+            /// The future returned by this function will resolve when either:
+            /// - The message was added to the queue successfully
+            /// - The message could not be added to the queue before the timeout expired.
+            /// Reasons for failure include:
+            /// - The message queue being consistently full for longer than the timeout
+            /// - The Postmaster being unable to acquire a lock on the senders before the timeout expires
+            /// - There being no recipient registered at the destination address
             pub async fn send(
                 destination: $address_enum,
                 source: $address_enum,
@@ -215,6 +224,12 @@ macro_rules! init_postmaster {
                     .await
             }
 
+            /// Attempt to send a message without waiting
+            /// This function works very similarly to `postmaster::send()`, however if this is not immediately possible it will return with an error rather than attempting to wait for a timeout period.
+            /// Reasons for failure include:
+            /// - The recipient's message queue being full
+            /// - The lock on the senders not being available
+            /// - There being no recipient registered at the destination address
             pub fn try_send(
                 destination: $address_enum,
                 source: $address_enum,
