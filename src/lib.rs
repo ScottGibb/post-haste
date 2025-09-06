@@ -144,7 +144,29 @@ macro_rules! init_postmaster {
             }
 
             /// This function can be used to register a standalone address with the Postmaster.
+            /// When registering an Agent (using the register_agent!() macro), the Agent's message queue is generated and assigned to the given address automatically.
+            /// However, there may be some scenarios where you may want to register a message queue without tying it to an Agent.
+            /// An example of this would be if you wanted to be able to receive messages on the main task, or providing a debug node for Agents to send diagnostics to.
             ///
+            /// # Example
+            /// ```rust
+            /// // Assuming Postmaster has been initialised above...
+            ///
+            /// use embassy_executor::Spawner;
+            /// use embassy_sync::channel::Channel;
+            ///
+            /// #[embassy_executor::main]
+            /// async fn main(spawner: Spawner) {
+            ///   let message_queue = Channel::new();
+            ///   postmaster::register(Address::MainTask, message_queue.sender().into()).unwrap()
+            ///
+            ///   let receiver = message_queue.receiver();
+            ///   loop {
+            ///     let received_message = receiver.receive().await;
+            ///     // Handle message...
+            ///   }
+            /// }
+            /// ```
             #[cfg(target_os = "none")]
             pub async fn register(
                 address: $address_enum,
@@ -153,6 +175,28 @@ macro_rules! init_postmaster {
                 postmaster_internal::register(address, mailbox).await
             }
 
+            /// This function can be used to register a standalone address with the Postmaster.
+            /// When registering an Agent (using the register_agent!() macro), the Agent's message queue is generated and assigned to the given address automatically.
+            /// However, there may be some scenarios where you may want to register a message queue without tying it to an Agent.
+            /// An example of this would be if you wanted to be able to receive messages on the main task, or providing a debug node for Agents to send diagnostics to.
+            ///
+            /// # Example
+            /// ```rust
+            /// // Assuming Postmaster has been initialised above...
+            ///
+            /// use tokio::sync::mpsc::channel;
+            ///
+            /// #[tokio::main]
+            /// async fn main() {
+            ///   let (sender, receiver) = channel::<postmaster::Message>();
+            ///   postmaster::register(Address::MainTask, sender).unwrap()
+            ///
+            ///   loop {
+            ///     let received_message = receiver.recv().await.unwrap();
+            ///     // Handle message...
+            ///   }
+            /// }
+            /// ```
             #[cfg(not(target_os = "none"))]
             pub async fn register(
                 address: $address_enum,
