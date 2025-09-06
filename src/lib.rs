@@ -43,6 +43,8 @@ pub use error::PostmasterError;
 /// ```rust
 /// #![feature(variant_count)]
 ///
+/// use post_haste::init_postmaster;
+///
 /// enum Address {
 ///   AgentOne,
 ///   AgentTwo,
@@ -73,6 +75,12 @@ macro_rules! init_postmaster {
             use post_haste::dependencies::*;
             const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
 
+            /// Initialises an Agent and its Mailbox
+            /// This macro both instantiates an Actor and kicks off its main loop.
+            /// It also creates the Mailbox for the Agent at the provided address, so that messages sent to that address will be delivered specifically to that Agent instance.
+            /// As well as the address and Agent type this macro also requires an instance of the Agent's associated Config type which is used during the instantiation of the Agent, and an optional queue size parameter which dictates the number of messages the Agent's Mailbox can hold.
+            /// If no queue size parameter is given this defaults to 1, meaning that if there is already a message waiting in an Agent's queue then any attempt to send a message to the Agent will have to wait until either the queued message is received, or the send timeout is reached (in which case message sending is considered a failure).
+            /// If try_send() is used to send to a full Mailbox, it will immediately return with failure.
             #[macro_export]
             #[cfg(not(target_os = "none"))]
             macro_rules! register_agent {
@@ -98,6 +106,13 @@ macro_rules! init_postmaster {
                     register_agent!($agent_address, $agent, $config, 1)
                 };
             }
+
+            /// Initialises an Agent and its Mailbox
+            /// This macro both instantiates an Actor and kicks off its main loop.
+            /// It also creates the Mailbox for the Agent at the provided address, so that messages sent to that address will be delivered specifically to that Agent instance.
+            /// As well as the address and Agent type this macro also requires an instance of the Agent's associated Config type which is used during the instantiation of the Agent, and an optional queue size parameter which dictates the number of messages the Agent's Mailbox can hold.
+            /// If no queue size parameter is given this defaults to 1, meaning that if there is already a message waiting in an Agent's queue then any attempt to send a message to the Agent will have to wait until either the queued message is received, or the send timeout is reached (in which case message sending is considered a failure).
+            /// If try_send() is used to send to a full Mailbox, it will immediately return with failure.
             #[macro_export]
             #[cfg(target_os = "none")]
             macro_rules! register_agent {
@@ -140,6 +155,7 @@ macro_rules! init_postmaster {
                 postmaster_internal::register(address, mailbox).await
             }
 
+            /// Hello I am a docstring
             pub async fn send(
                 destination: $address_enum,
                 source: $address_enum,
