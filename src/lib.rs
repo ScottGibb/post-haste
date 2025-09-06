@@ -73,6 +73,7 @@ macro_rules! init_postmaster {
             use super::{$address_enum, $payload_enum};
             use post_haste::PostmasterError;
             use post_haste::dependencies::*;
+
             const ADDRESS_COUNT: usize = core::mem::variant_count::<$address_enum>();
 
             /// Initialises an Agent and its Mailbox
@@ -142,20 +143,23 @@ macro_rules! init_postmaster {
                 }
             }
 
-            #[cfg(not(target_os = "none"))]
-            pub type Mailbox = Sender<Message>;
             #[cfg(target_os = "none")]
-            pub type Mailbox = DynamicSender<'static, Message>;
-
-
             pub async fn register(
                 address: $address_enum,
-                mailbox: Mailbox,
+                mailbox: DynamicSender<'static, Message>,
             ) -> Result<(), PostmasterError> {
                 postmaster_internal::register(address, mailbox).await
             }
 
-            /// Hello I am a docstring
+            #[cfg(not(target_os = "none"))]
+            pub async fn register(
+                address: $address_enum,
+                mailbox: Sender<Message>,
+            ) -> Result<(), PostmasterError> {
+                postmaster_internal::register(address, mailbox).await
+            }
+
+
             pub async fn send(
                 destination: $address_enum,
                 source: $address_enum,
@@ -244,13 +248,17 @@ macro_rules! init_postmaster {
             mod postmaster_internal {
                 use super::{
                     ADDRESS_COUNT, Message, PostmasterError, $address_enum, $payload_enum,
-                    Mailbox
                 };
                 use core::cell::RefCell;
                 use core::sync::atomic::Ordering;
                 use post_haste::dependencies::*;
                 #[post_haste::dependencies::from_env]
                 const DELAYED_MESSAGE_POOL_SIZE: usize = 8;
+
+                #[cfg(target_os = "none")]
+                type Mailbox = DynamicSender<Message>;
+                #[cfg(not(target_os = "none"))]
+                type Mailbox = Sender<Message>;
 
                 pub(super) async fn register(
                     address: $address_enum,
