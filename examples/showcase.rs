@@ -223,7 +223,8 @@ async fn main() {
             custom_greeting: None,
             reply_delay: Duration::from_secs(1)
         }
-    );
+    )
+    .unwrap();
     // This agent has a fancy custom greeting, so will use this in its replies instead!
     register_agent!(
         AgentB,
@@ -232,7 +233,8 @@ async fn main() {
             custom_greeting: Some("Good day!".to_string()),
             reply_delay: Duration::from_secs(2)
         }
-    );
+    )
+    .unwrap();
     // As well as having its own custom greeting, this Agent also has been given an expanded message queue size!
     // Each Agent mailbox can be sized independently.
     // Mailboxes use static memory, so the larger the mailbox the more static memory will be needed.
@@ -245,7 +247,8 @@ async fn main() {
             reply_delay: Duration::from_secs(3)
         },
         2
-    );
+    )
+    .unwrap();
 
     postmaster::send(
         Address::AgentA,

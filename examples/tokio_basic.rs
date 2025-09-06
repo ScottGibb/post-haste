@@ -31,8 +31,8 @@ async fn main() {
     }
 }
 pub async fn run() {
-    register_agent!(A, PoliteAgent, ());
-    register_agent!(B, PoliteAgent, (), 2);
+    register_agent!(A, PoliteAgent, ()).unwrap();
+    register_agent!(B, PoliteAgent, (), 2).unwrap();
     postmaster::send(Addresses::A, Addresses::B, Payloads::Hello)
         .await
         .unwrap();

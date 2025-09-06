@@ -92,8 +92,7 @@ macro_rules! init_postmaster {
                         tokio::task::spawn(async move {
                             agent.run(receiver).await;
                         });
-                    }).expect("This should not fail!");
-
+                    })
                 }};
                 ($agent_address:ident, $agent:ty, $config:expr) => {
                     register_agent!($agent_address, $agent, $config, 1)
