@@ -42,6 +42,7 @@ This macro takes the following arguments:
 - The type of Agent being instantiated
 - Config for the Agent in the form of an instance of its associated `Config` type
 - (Optional) The size of the Agent's message queue
+
 Within this macro, the Agent's message queue is created, the Agent instance is created and a task is spawned for its main loop.
 The Agent can be considered active and ready to receive messages immediately following its registration.
 
