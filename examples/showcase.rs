@@ -87,7 +87,7 @@ mod polite_agent {
     enum InternalMessage {
         /// The PoliteAgent sends this message to itself with a delay, so when the message is received it indicates that the timer has expired.
         /// This is a simple  way of running an asynchronous timer without needing to select on multiple futures.
-        /// Note that as this uses the Mailbox, timing precision may be affected (if there are other messages in the queue they will be processed first).
+        /// Note that as this uses the Postmaster, timing precision may be affected (if there are other messages in the queue they will be processed first).
         TimerExpired { hello_source: Address },
     }
 
@@ -223,7 +223,8 @@ async fn main() {
             custom_greeting: None,
             reply_delay: Duration::from_secs(1)
         }
-    );
+    )
+    .unwrap();
     // This agent has a fancy custom greeting, so will use this in its replies instead!
     register_agent!(
         AgentB,
@@ -232,10 +233,11 @@ async fn main() {
             custom_greeting: Some("Good day!".to_string()),
             reply_delay: Duration::from_secs(2)
         }
-    );
+    )
+    .unwrap();
     // As well as having its own custom greeting, this Agent also has been given an expanded message queue size!
-    // Each Agent mailbox can be sized independently.
-    // Mailboxes use static memory, so the larger the mailbox the more static memory will be needed.
+    // Each Agent message queue can be sized independently.
+    // The message queues are held in static memory, so the larger the mailbox the more static memory will be needed.
     // This is not so much of a concern for applications running on a full OS, but is an important consideration in resource-constrained embedded devices.
     register_agent!(
         AgentC,
@@ -245,7 +247,8 @@ async fn main() {
             reply_delay: Duration::from_secs(3)
         },
         2
-    );
+    )
+    .unwrap();
 
     postmaster::send(
         Address::AgentA,
