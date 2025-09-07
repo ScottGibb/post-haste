@@ -62,6 +62,7 @@ pub use error::PostmasterError;
 /// init_postmaster!(Address, Payloads);
 /// ```
 #[macro_export]
+#[allow(clippy::crate_in_macro_def)]
 macro_rules! init_postmaster {
 
     ($address_enum:ty, $payload_enum:ty, $timeout_us: expr) => {
