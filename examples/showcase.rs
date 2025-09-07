@@ -35,7 +35,11 @@ enum Address {
 
 // This macro call generates all the functionality associated with the Postmaster.
 // The Address and Payload enum types are provided as arguments, as they are required for the functionality of the Postmaster.
-init_postmaster!(Address, Payloads);
+// Note that here the Postmaster is configured with a default timeout of 100 us.
+// This third argument is optional and can be omitted, which will result in the Postmaster using a default timeout of 1 ms (1000 us).
+// Due to the way the macro expands, if you wish to use a constant to represent the timeout value, you will need to include the scope of the constant, as demonstrated.
+const SEND_TIMEOUT_US: u32 = 100;
+init_postmaster!(Address, Payloads, crate::SEND_TIMEOUT_US);
 
 /// This module provides all functionality and types associated with the Polite Agent.
 /// Usually this would be in its own file, however here it is presented as a module so that the example is a single, self-reliant file.
