@@ -261,6 +261,11 @@ macro_rules! init_postmaster {
                 postmaster_internal::get_diagnostics()
             }
 
+            /// Change the Postmaster's default timeout for sending messages
+            pub fn set_timeout(timeout_us: u32) {
+                postmaster_internal::set_timeout(timeout_us)
+            }
+
             impl MessageBuilder {
                 /// Add a custom timeout to the message.
                 /// When the message is sent, it will use this timeout to determine how long to wait before giving up, rather than the Postmaster's default timeout.
@@ -473,6 +478,10 @@ macro_rules! init_postmaster {
                         messages_sent: POSTMASTER.messages_sent.load(Ordering::Relaxed),
                         send_failures: POSTMASTER.send_failures.load(Ordering::Relaxed),
                     }
+                }
+
+                pub(super) fn set_timeout(timeout_us: u32) {
+                    POSTMASTER.timeout_us.store(timeout_us, Ordering::Relaxed)
                 }
 
                 #[cfg(not(target_os = "none"))]
