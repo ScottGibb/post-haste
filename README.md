@@ -29,6 +29,9 @@ In order to allow the Postmaster to be `no_std` and `alloc`-free, its logic requ
 Specifically, it needs to know the number of Agents which will be running and the payload structures which the messages will contain.
 To achieve this, the Postmaster logic must be written at compile-time by the `init_postmaster!()` macro.
 The two arguments to the macro are of course the `Address` type and the `Payload` type, both defined by your project.
+The `init_postmaster!()` macro takes an optional third argument, the default timeout that the Postmaster should use when sending messages in microseconds.
+If this optional argument is left out, the Postmaster will use a timeout of 1 ms (1000 us).
+For more information on message sending timeout, see [Communicating with Agents](#communicating-with-agents) below.
 The output of the macro is a `postmater` module, containing the Postmaster's public interface.
 
 ### Registering Agents
@@ -39,6 +42,7 @@ This macro takes the following arguments:
 - The type of Agent being instantiated
 - Config for the Agent in the form of an instance of its associated `Config` type
 - (Optional) The size of the Agent's message queue
+
 Within this macro, the Agent's message queue is created, the Agent instance is created and a task is spawned for its main loop.
 The Agent can be considered active and ready to receive messages immediately following its registration.
 
@@ -52,11 +56,11 @@ Once configured, the message is sent by calling the `MessageBuilder`'s `send()` 
 When sending a message, it may be configured with a "timeout" and a "delay".
 Upon attempting to send a message it may not be possible to immediately push the message onto the recipient's queue, for example if said queue is already full.
 This is the purpose of the timeout: the `send()` function returns a future which will resolve either when the message has been successfully posted, or when the timeout expires.
-By default, the timeout is 100 ms.
+By default, the timeout is 1 ms.
 Sending a message with a "delay" means that the `send()` function will immediately return, but the message will only be added to the recipient's queue after the delay is complete.
 
 The `postmaster` module also contains a couple of shortcut functions for sending messages:
-- `postmaster::send()` which will attempt to send the message immediately with the default timeout of 100 ms.
+- `postmaster::send()` which will attempt to send the message immediately with the default timeout of 1 ms.
 - `postmaster::try_send()` which will attempt to send the message immediately, but will not wait: it will return immediately.
 
 In all cases, what the recipient receives when it accesses its inbox is a `postmaster::Message` struct, which contains the source address and the message payload.
@@ -69,6 +73,8 @@ Currently this just contains a tally of the number of messages successfully sent
 
 It is also possible to register a standalone mailbox on the system, without associating it with an Agent, using `postmaster::register()`.
 This might for example be used to communicate back to the main task of the project, or to provide a "debug" address for debug messages to be sent.
+
+The default timeout used by the Postmaster when a message is sent with no specific timeout configuration can be changed using `postmaster::set_timeout()`, taking a value in microseconds.
 
 ## Example usage
 The following forms the core of the code layout for a baremetal project built upon post_haste (excluding any architecture-specific code and dependencies):
