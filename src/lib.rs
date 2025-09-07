@@ -62,7 +62,7 @@ pub use error::PostmasterError;
 #[macro_export]
 macro_rules! init_postmaster {
 
-    ($address_enum:ty, $payload_enum:ty) => {
+    ($address_enum:ty, $payload_enum:ty, $timeout_us: expr) => {
         /// API module for the Postmaster
         /// This module contains all of the functions required to pass messages between Agents, facilitated by the Postmaster.
         ///
@@ -485,7 +485,7 @@ macro_rules! init_postmaster {
                 #[cfg(not(target_os = "none"))]
                 static POSTMASTER: Lazy<Postmaster> = Lazy::new(|| Postmaster {
                     senders: Mutex::new([const { None }; ADDRESS_COUNT]),
-                    timeout_us: AtomicU32::new(100),
+                    timeout_us: AtomicU32::new($timeout_us),
                     messages_sent: AtomicUsize::new(0),
                     send_failures: AtomicUsize::new(0),
                 });
@@ -533,5 +533,8 @@ macro_rules! init_postmaster {
                 }
             }
         }
+    };
+    ($address_enum:ty, $payload_enum:ty) => {
+        init_postmaster!($address_enum, $payload_enum, 1000);
     };
 }
