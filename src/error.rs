@@ -21,6 +21,11 @@ pub enum PostmasterError {
     ReceiverClosed, // Tokio Specific
     TrySendFailed,
     DelayedMessageTaskSpawnFailed,
+    /// A reference to the spawner has not yet been passed to the Postmaster.
+    /// This is usually achieved automatically when `register_agent!()` is called.
+    /// If you have not yet registered any Agents, you can call `postmaster::set_spawner()` before attempting to send the delayed message.
+    #[cfg(target_os = "none")]
+    SpawnerNotSet,
 }
 
 impl From<TryLockError> for PostmasterError {
