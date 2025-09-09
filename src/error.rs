@@ -32,7 +32,8 @@ pub enum PostmasterError {
     /// Postmaster was unable to spawn a task to handle the delayed message.
     /// This is most likely caused by the task pool being too small.
     /// Try increasing the DELAYED_MESSAGE_POOL_SIZE environment variable (default is 8).
-    DelayedMessageTaskSpawnFailed,
+    #[cfg(target_os = "none")]
+    DelayedMessagePoolFull,
     /// A reference to the spawner has not yet been passed to the Postmaster.
     /// This is usually achieved automatically when `register_agent!()` is called.
     /// If you have not yet registered any Agents, you can call `postmaster::set_spawner()` before attempting to send the delayed message.
@@ -62,7 +63,7 @@ impl From<TimeoutError> for PostmasterError {
 #[cfg(target_os = "none")]
 impl From<SpawnError> for PostmasterError {
     fn from(_: SpawnError) -> Self {
-        Self::DelayedMessageTaskSpawnFailed
+        Self::DelayedMessagePoolFull
     }
 }
 
