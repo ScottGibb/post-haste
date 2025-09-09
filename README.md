@@ -76,6 +76,14 @@ This might for example be used to communicate back to the main task of the proje
 
 The default timeout used by the Postmaster when a message is sent with no specific timeout configuration can be changed using `postmaster::set_timeout()`, taking a value in microseconds.
 
+### Advanced configuration
+#### Delayed message pool (Embassy only)
+When using post-haste on bare metal targets with Embassy, delayed messages are held in a finite pool while they await the expiry of their delay duration.
+By default, the size of this pool is 8.
+If at any point the pool is full, any attempt to send a delayed message will result in a `DelayedMessagePoolFull` error, and the message will not be sent.
+The size of the pool can be modified by setting the `DELAYED_MESSAGE_POOL_SIZE` environment variable.
+Please note however that increasing the pool size will increase static memory usage.
+
 ## Example usage
 The following forms the core of the code layout for a baremetal project built upon post_haste (excluding any architecture-specific code and dependencies):
 ```rust

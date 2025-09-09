@@ -132,6 +132,7 @@ macro_rules! init_postmaster {
                     static MAILBOX: Mailbox = Mailbox{ inner: Channel::new()};
 
                     let agent = <$agent>::create(<$address_enum>::$agent_address, $config).await;
+                    postmaster::set_spawner($spawner);
                     postmaster::register(<$address_enum>::$agent_address, MAILBOX.inner.sender().into()).await.inspect(|_| {
 
                         #[task]
@@ -269,6 +270,13 @@ macro_rules! init_postmaster {
                 postmaster_internal::set_timeout(timeout_us)
             }
 
+            /// Pass a reference to the spawner to the Postmaster for use in delayed messages.
+            /// Please note that you should not need to call this function, as the Postmaster automatically acquires a reference to the spawner when an Agent is registered with `register_agent!()`.
+            #[cfg(target_os = "none")]
+            pub fn set_spawner(spawner: Spawner) {
+                postmaster_internal::set_spawner(spawner)
+            }
+
             impl MessageBuilder {
                 /// Add a custom timeout to the message.
                 /// When the message is sent, it will use this timeout to determine how long to wait before giving up, rather than the Postmaster's default timeout.
@@ -354,7 +362,7 @@ macro_rules! init_postmaster {
                 const DELAYED_MESSAGE_POOL_SIZE: usize = 8;
 
                 #[cfg(target_os = "none")]
-                type Mailbox = DynamicSender<Message>;
+                type Mailbox = DynamicSender<'static, Message>;
                 #[cfg(not(target_os = "none"))]
                 type Mailbox = Sender<Message>;
 
@@ -443,7 +451,7 @@ macro_rules! init_postmaster {
                     if let Some(spawner) = *POSTMASTER.spawner.borrow(){
                             Ok(spawner.spawn(delayed_send(destination, message, delay, timeout))?)
                         } else {
-                            send_internal(destination, message, timeout).await
+                            Err(PostmasterError::SpawnerNotSet)
                         }
 
                 }
@@ -485,6 +493,13 @@ macro_rules! init_postmaster {
 
                 pub(super) fn set_timeout(timeout_us: u32) {
                     POSTMASTER.timeout_us.store(timeout_us, Ordering::Relaxed)
+                }
+
+                #[cfg(target_os = "none")]
+                pub(super) fn set_spawner(spawner: Spawner) {
+                    if POSTMASTER.spawner.borrow().is_none() {
+                        POSTMASTER.spawner.replace(Some(spawner));
+                    }
                 }
 
                 #[cfg(not(target_os = "none"))]

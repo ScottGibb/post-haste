@@ -11,16 +11,34 @@ pub mod imports {
 
 use imports::*;
 
+/// Enumeration of potential errors which the Postmaster may encounter
 #[derive(Debug)]
 pub enum PostmasterError {
+    /// The address specified has already been assigned
     AddressAlreadyTaken,
+    /// No recipient has been registered at the specified address
     NoRecipient,
+    /// The timeout was triggered while attempting to send a message
     Timeout,
+    /// Postmaster was unable to acquire a lock on the Senders when `postmaster::try_send()` was called.
+    /// This may happen if another task is waiting to send a message at the same time.
     TryLockFailed,
+    /// The Receiver for the specified address has closed (gone out of scope).
     #[cfg(not(target_os = "none"))]
     ReceiverClosed, // Tokio Specific
+    /// Calling `try_send()` on the recipient's message queue failed.
+    /// This is most likely due to teh recipient's message queue being full.
     TrySendFailed,
-    DelayedMessageTaskSpawnFailed,
+    /// Postmaster was unable to spawn a task to handle the delayed message.
+    /// This is most likely caused by the task pool being too small.
+    /// Try increasing the DELAYED_MESSAGE_POOL_SIZE environment variable (default is 8).
+    #[cfg(target_os = "none")]
+    DelayedMessagePoolFull,
+    /// A reference to the spawner has not yet been passed to the Postmaster.
+    /// This is usually achieved automatically when `register_agent!()` is called.
+    /// If you have not yet registered any Agents, you can call `postmaster::set_spawner()` before attempting to send the delayed message.
+    #[cfg(target_os = "none")]
+    SpawnerNotSet,
 }
 
 impl From<TryLockError> for PostmasterError {
@@ -45,7 +63,7 @@ impl From<TimeoutError> for PostmasterError {
 #[cfg(target_os = "none")]
 impl From<SpawnError> for PostmasterError {
     fn from(_: SpawnError) -> Self {
-        Self::DelayedMessageTaskSpawnFailed
+        Self::DelayedMessagePoolFull
     }
 }
 
