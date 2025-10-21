@@ -87,7 +87,7 @@ macro_rules! init_postmaster {
             /// If try_send() is used to send to a full message queue, it will immediately return with failure.
             #[macro_export]
             #[cfg(not(target_os = "none"))]
-            macro_rules! register_agent {
+            macro_rules! _register_agent {
                 ($agent_address:ident, $agent:ty, $config:expr, $queue_size: expr) => {{
                     use crate::postmaster::Message;
                     use post_haste::agent::Agent;
@@ -107,7 +107,7 @@ macro_rules! init_postmaster {
                     })
                 }};
                 ($agent_address:ident, $agent:ty, $config:expr) => {
-                    register_agent!($agent_address, $agent, $config, 1)
+                    crate::postmaster::register_agent!($agent_address, $agent, $config, 1)
                 };
             }
 
@@ -119,7 +119,7 @@ macro_rules! init_postmaster {
             /// If try_send() is used to send to a full message queue, it will immediately return with failure.
             #[macro_export]
             #[cfg(target_os = "none")]
-            macro_rules! register_agent {
+            macro_rules! _register_agent {
                 ($spawner:ident, $agent_address:ident, $agent:ty, $config:expr, $queue_size: expr) => {{
                     use post_haste::dependencies::{NoopRawMutex, Channel, task};
                     use post_haste::agent::Agent;
@@ -143,9 +143,12 @@ macro_rules! init_postmaster {
                     })
                 }};
                 ($spawner:ident, $agent_address:ident, $agent:ty, $config:expr) => {
-                    register_agent!($spawner, $agent_address, $agent, $config, 1)
+                    crate::postmaster::register_agent!($spawner, $agent_address, $agent, $config, 1)
                 }
             }
+
+            #[doc(hidden)]
+            pub(crate) use _register_agent as register_agent;
 
             /// This function can be used to register a standalone address with the Postmaster.
             /// When registering an Agent (using the register_agent!() macro), the Agent's message queue is generated and assigned to the given address automatically.
