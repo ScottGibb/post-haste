@@ -148,7 +148,7 @@ macro_rules! init_postmaster {
             }
 
             #[doc(hidden)]
-            pub(crate) use _register_agent as register_agent;
+            pub use _register_agent as register_agent;
 
             /// This function can be used to register a standalone address with the Postmaster.
             /// When registering an Agent (using the register_agent!() macro), the Agent's message queue is generated and assigned to the given address automatically.
