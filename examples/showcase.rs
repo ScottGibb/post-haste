@@ -220,7 +220,7 @@ mod polite_agent {
 #[tokio::main]
 async fn main() {
     // This agent is configured with no custom greeting, so will reply with a generic hello message
-    register_agent!(
+    postmaster::register_agent!(
         AgentA,
         PoliteAgent,
         PoliteAgentConfig {
@@ -230,7 +230,7 @@ async fn main() {
     )
     .unwrap();
     // This agent has a fancy custom greeting, so will use this in its replies instead!
-    register_agent!(
+    postmaster::register_agent!(
         AgentB,
         PoliteAgent,
         PoliteAgentConfig {
@@ -243,7 +243,7 @@ async fn main() {
     // Each Agent message queue can be sized independently.
     // The message queues are held in static memory, so the larger the mailbox the more static memory will be needed.
     // This is not so much of a concern for applications running on a full OS, but is an important consideration in resource-constrained embedded devices.
-    register_agent!(
+    postmaster::register_agent!(
         AgentC,
         PoliteAgent,
         PoliteAgentConfig {
