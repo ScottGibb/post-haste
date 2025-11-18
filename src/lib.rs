@@ -24,7 +24,7 @@ pub mod async_runtime_dependencies {
 }
 pub mod dependencies {
     pub use crate::async_runtime_dependencies::*;
-    pub use const_env::from_env;
+    pub use const_env::env_item;
     pub use portable_atomic::{AtomicU32, AtomicUsize};
 }
 pub use error::PostmasterError;
@@ -361,7 +361,7 @@ macro_rules! init_postmaster {
                 use core::cell::RefCell;
                 use core::sync::atomic::Ordering;
                 use post_haste::dependencies::*;
-                #[post_haste::dependencies::from_env]
+                #[post_haste::dependencies::env_item]
                 const DELAYED_MESSAGE_POOL_SIZE: usize = 8;
 
                 #[cfg(target_os = "none")]
