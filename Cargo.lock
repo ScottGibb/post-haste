@@ -64,22 +64,22 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "const_env"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e9e4f72c6e3398ca6da372abd9affd8f89781fe728869bbf986206e9af9627e"
+checksum = "5abf3680e7fff0295abbd53b271930edecadd1c6bf77cc77bf63dc741663a988"
 dependencies = [
  "const_env_impl",
 ]
 
 [[package]]
 name = "const_env_impl"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a4f51209740b5e1589e702b3044cdd4562cef41b6da404904192ffffb852d62"
+checksum = "71f9a669d589cdabddc551d8646c02ac055498212de30fc8fc42de30a41a963e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn",
 ]
 
 [[package]]
@@ -109,7 +109,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.104",
+ "syn",
 ]
 
 [[package]]
@@ -120,7 +120,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.104",
+ "syn",
 ]
 
 [[package]]
@@ -152,7 +152,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.104",
+ "syn",
 ]
 
 [[package]]
@@ -511,17 +511,6 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "syn"
-version = "1.0.109"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-ident",
-]
-
-[[package]]
-name = "syn"
 version = "2.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17b6f705963418cdb9927482fa304bc562ece2fdd4f616084c50b7023b435a40"
@@ -557,7 +546,7 @@ checksum = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.104",
+ "syn",
 ]
 
 [[package]]
